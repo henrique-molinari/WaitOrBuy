@@ -1,6 +1,13 @@
 # Uso: make up && make migrate && make etl && make seed-demo
 DC = docker compose
 
+demo:
+	bash scripts/demo.sh
+
+demo-offline:
+	bash scripts/restore_snapshot.sh
+	$(DC) exec backend python scripts/demo_user.py
+
 up:
 	$(DC) up -d --build --wait
 
@@ -33,4 +40,7 @@ verify: lint test
 logs:
 	$(DC) logs -f --tail=100
 
-.PHONY: up down reset migrate etl seed-demo alerts-eval lint test verify logs
+.PHONY: demo demo-offline e2e up down reset migrate etl seed-demo alerts-eval lint test verify logs
+
+e2e:
+	bash scripts/e2e.sh
