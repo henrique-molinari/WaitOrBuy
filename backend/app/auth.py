@@ -1,9 +1,10 @@
 import secrets
 
+from fastapi import Header
+
 from app import firebase
 from app.config import settings
 from app.errors import AppError
-from fastapi import Header
 
 
 def current_uid(authorization: str | None = Header(default=None)) -> str:

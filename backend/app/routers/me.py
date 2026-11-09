@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
 
+from fastapi import APIRouter, Depends, Query
+from google.cloud.firestore_v1 import Query as FsQuery
+
 from app import db, firebase
 from app.auth import current_uid
 from app.errors import AppError
@@ -7,8 +10,6 @@ from app.routers.public import mongo_meta
 from app.schemas import AlertCreate, AlertsOut, DeviceIn, NotificationsOut, WishlistAdd, WishlistOut
 from app.services import pricing
 from app.services.cart import build_cart
-from fastapi import APIRouter, Depends, Query
-from google.cloud.firestore_v1 import Query as FsQuery
 
 router = APIRouter(prefix="/api/me", tags=["usuário"])
 

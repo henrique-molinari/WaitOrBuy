@@ -2,8 +2,9 @@
 import os
 
 import firebase_admin
-from app.config import settings
 from firebase_admin import auth, credentials
+
+from app.config import settings
 
 _fs = None
 

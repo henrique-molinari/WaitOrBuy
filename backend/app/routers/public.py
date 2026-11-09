@@ -1,8 +1,9 @@
+from fastapi import APIRouter, Depends, Query
+
 from app import db
 from app.errors import AppError
 from app.schemas import DealsResponse, FxOut, GameDetail, History, SearchResponse
 from app.services import pricing
-from fastapi import APIRouter, Depends, Query
 
 router = APIRouter()
 

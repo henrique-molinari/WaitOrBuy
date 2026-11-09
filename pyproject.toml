@@ -9,3 +9,6 @@ ignore = ["B008"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "backend"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "etl", "tests"]

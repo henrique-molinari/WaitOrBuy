@@ -2,10 +2,11 @@
 from datetime import datetime
 from decimal import Decimal
 
-from app.config import TZ, settings
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from pymongo import MongoClient
+
+from app.config import TZ, settings
 
 _pool: ConnectionPool | None = None
 _mongo: MongoClient | None = None
