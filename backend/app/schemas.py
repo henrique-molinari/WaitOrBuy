@@ -60,6 +60,7 @@ class VerdictOut(BaseModel):
     confidence: Literal["baixa", "media", "alta"]
     reasons: list[str]
     metrics: dict
+    based_on_simulated: bool
 
 
 class NextSale(BaseModel):

@@ -58,6 +58,15 @@ def next_sale_info(conn, ref=None) -> dict | None:
 
 
 def build_verdict(best_offer: dict | None, stats: dict | None, sale: dict | None) -> dict:
+    out = _verdict(best_offer, stats, sale)
+    sim = bool(stats and stats.get("has_simulated_history"))
+    out["based_on_simulated"] = sim
+    if sim:
+        out["reasons"] = out["reasons"] + ["Atenção: o histórico usado é simulado para demonstração; com dados reais o resultado pode mudar."]
+    return out
+
+
+def _verdict(best_offer, stats, sale) -> dict:
     return verdict.evaluate(verdict.VerdictInput(
         price_now=best_offer["price_brl"] if best_offer else None,
         min_ever=stats["min_price_brl"] if stats else None,
