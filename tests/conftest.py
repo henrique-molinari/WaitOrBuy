@@ -74,8 +74,9 @@ def add_history(world):
 
 @pytest.fixture(scope="session")
 def client():
-    from app.main import app
     from fastapi.testclient import TestClient
+
+    from app.main import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c

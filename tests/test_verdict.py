@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+
 from app.services.verdict import VerdictInput, confidence, evaluate
 
 SALE = date(2026, 11, 27)

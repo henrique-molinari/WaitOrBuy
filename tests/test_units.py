@@ -2,11 +2,11 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+
 from app.services import sales
 from app.services.alerts import decide
 from app.services.cart import build_cart
 from app.services.pricing import price_per_hour
-
 from etl import fx
 from etl.jobs.prices import pick_hit
 from etl.jobs.seed_demo import in_window
@@ -106,6 +106,7 @@ def test_decide(price, target, last, expected):
 
 def test_http_429_long_retry_after_raises_immediately():
     import httpx
+
     from etl.http import HttpClient, RateLimited
 
     calls = []
