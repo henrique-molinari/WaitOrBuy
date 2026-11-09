@@ -1,0 +1,47 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+firebase-credentials*.json
+*-service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Bancos locais, volumes e dumps
+pgdata/
+mongodata/
+*.dump
+*.sql.gz
+*.bak
+dump/
+
+# Firebase emulator
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+
+# KNIME (estado local do workspace)
+knime/.metadata/
+
+# Logs e sistema
+*.log
+.DS_Store
+Thumbs.db
