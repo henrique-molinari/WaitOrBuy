@@ -133,7 +133,7 @@ def test_alert_lifecycle_trigger_no_repeat_rearm(client, auth, world):
     alert_id = created.json()["alert_id"]
 
     def evaluate():
-        return client.post("/api/admin/alerts/evaluate", headers=ADMIN).json()
+        return client.post("/api/admin/alerts/evaluate", params={"uid": uid}, headers=ADMIN).json()
 
     def mine(res):  # outros usuários do emulador podem existir; olhamos só a notificação deste usuário
         return client.get("/api/me/notifications", headers=h).json()
@@ -166,3 +166,15 @@ def test_register_device(client, auth):
     _, h = auth
     assert client.post("/api/me/devices", json={"token": "abc/def-0123456789", "platform": "web"}, headers=h).status_code == 201
     assert client.post("/api/me/devices", json={"token": "x"}, headers=h).status_code == 422
+
+
+def test_rate_limit_returns_429_json(client, monkeypatch):
+    import app.main as m
+
+    monkeypatch.setattr(m, "RATE_LIMIT_PER_MIN", 3)
+    m._HITS.clear()
+    codes = [client.get("/api/fx").status_code for _ in range(5)]
+    assert codes[-1] == 429 and codes[0] != 429
+    r = client.get("/api/fx")
+    assert r.json()["error"]["code"] == "rate_limited"
+    m._HITS.clear()

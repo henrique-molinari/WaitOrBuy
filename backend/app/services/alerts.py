@@ -2,9 +2,10 @@
 import logging
 from datetime import datetime, timezone
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from app import firebase
 from app.services.verdict import brl
-from google.cloud.firestore_v1.base_query import FieldFilter
 
 log = logging.getLogger("app.alerts")
 EPS = 0.005
@@ -29,12 +30,14 @@ def best_price(conn, game_id: int, store_id: int | None) -> dict | None:
         (game_id, store_id)).fetchone()
 
 
-def evaluate(conn, fs=None) -> dict:
+def evaluate(conn, fs=None, only_uid: str | None = None) -> dict:
     fs = fs or firebase.firestore_client()
     stats = {"alerts_checked": 0, "triggered": 0, "rearmed": 0, "notifications_created": 0, "push": "nao_configurado"}
     titles = {r["game_id"]: r["title"] for r in conn.execute("SELECT game_id, title FROM games")}
     docs = fs.collection_group("alerts").where(filter=FieldFilter("active", "==", True)).stream()
     for doc in docs:
+        if only_uid and doc.reference.parent.parent.id != only_uid:
+            continue
         a = doc.to_dict()
         stats["alerts_checked"] += 1
         try:
@@ -61,7 +64,7 @@ def evaluate(conn, fs=None) -> dict:
                 if firebase.push_enabled():
                     sent = False
                     for dev in fs.collection("users").document(uid).collection("devices").stream():
-                        sent = firebase.send_push(dev.id, f"{title} chegou ao seu preço", body) or sent
+                        sent = firebase.send_push(dev.to_dict().get("token", dev.id), f"{title} chegou ao seu preço", body) or sent
                     if sent:
                         stats["push"] = "enviado"
         except Exception as exc:  # um alerta com dado ruim não derruba os demais
