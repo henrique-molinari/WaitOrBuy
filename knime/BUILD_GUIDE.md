@@ -2,7 +2,7 @@
 
 > **PASSO MANUAL (~1 h):** os `.knwf` não são editados à mão; monte-os na GUI do KNIME Analytics Platform (5.x) seguindo este guia e exporte para `knime/workflows/`. O sistema já roda de ponta a ponta com os jobs Python equivalentes (`python -m etl.jobs.<job>`), que os workflows reproduzem ou chamam.
 
-Pré-requisitos: KNIME 5.x; extensões *KNIME Database*, *KNIME JSON-Processing*, *KNIME Python Integration*; PostgreSQL em `localhost:5432` (usuário/senha/DB do `.env`) e MongoDB em `localhost:27017` (subir com `docker compose up -d postgres mongo`). Variáveis de fluxo (Flow Variables) comuns: `db_url`, `ua = "WaitOrBuy-Academic/0.1 (student project)"`.
+Pré-requisitos: KNIME 5.x; extensões *KNIME Database*, *KNIME JSON-Processing*, *KNIME Python Integration*; PostgreSQL em `localhost:5433` (usuário/senha/DB do `.env`) e MongoDB em `localhost:27018` (subir com `docker compose up -d postgres mongo`). Variáveis de fluxo (Flow Variables) comuns: `db_url`, `ua = "WaitOrBuy-Academic/0.1 (student project)"`.
 
 Atalho de menor esforço (válido para os 3): nó **Python Script (Labs)** executando `subprocess.run(["python","-m","etl.jobs.<job>"], cwd=<raiz do repo>)`; o workflow fica “Table Creator → Python Script → DB Reader (validação)”. A cadeia detalhada abaixo é a versão visual completa.
 
