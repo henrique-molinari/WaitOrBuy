@@ -1,0 +1,698 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "waitorbuy",
+  "resources": [
+    {
+      "_id": "wrk_waitorbuy",
+      "_type": "workspace",
+      "name": "WaitOrBuy",
+      "scope": "collection",
+      "description": "Testes manuais e automatizados da API WaitOrBuy."
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_waitorbuy",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:8000",
+        "auth_url": "http://localhost:9099",
+        "admin_token": "troque-este-token-admin",
+        "demo_email": "demo@waitorbuy.test",
+        "demo_password": "demo-123456",
+        "search_term": "hades",
+        "token": "{% response 'body', 'req_login', 'b64::JC5pZFRva2Vu::46b', 'never', 60 %}",
+        "game_id": "{% response 'body', 'req_search', 'b64::JC5yZXN1bHRzWzBdLmdhbWVfaWQ=::46b', 'never', 60 %}",
+        "alert_id": "{% response 'body', 'req_alert_create', 'b64::JC5hbGVydF9pZA==::46b', 'never', 60 %}",
+        "notification_id": "{% response 'body', 'req_notifications', 'b64::JC5pdGVtc1swXS5pZA==::46b', 'never', 60 %}"
+      }
+    },
+    {
+      "_id": "fld_infra",
+      "_type": "request_group",
+      "parentId": "wrk_waitorbuy",
+      "name": "0 - Infra",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "parentId": "fld_infra",
+      "name": "Health (3 bancos)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health",
+      "metaSortKey": 2,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "fld_public",
+      "_type": "request_group",
+      "parentId": "wrk_waitorbuy",
+      "name": "1 - Publico",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_search",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Buscar jogo",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/search?q={{ _.search_term }}",
+      "metaSortKey": 4,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_search_empty",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Buscar sem resultado",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/search?q=zzzzjogoinexistente",
+      "metaSortKey": 5,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_search_invalid",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Buscar sem q (422)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/search",
+      "metaSortKey": 6,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_game",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Detalhe do jogo + veredito",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/games/{{ _.game_id }}",
+      "metaSortKey": 7,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_game_404",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Jogo inexistente (404)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/games/999999999",
+      "metaSortKey": 8,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_history",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Historico 90 dias",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/games/{{ _.game_id }}/history?days=90",
+      "metaSortKey": 9,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_history_bad",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Historico days invalido (422)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/games/{{ _.game_id }}/history?days=0",
+      "metaSortKey": 10,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_deals",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Ofertas da home",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/deals/home?limit=12",
+      "metaSortKey": 11,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_fx",
+      "_type": "request",
+      "parentId": "fld_public",
+      "name": "Cambio USD/BRL",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/fx",
+      "metaSortKey": 12,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_waitorbuy",
+      "name": "2 - Autenticacao (emulador Firebase)",
+      "metaSortKey": 13
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login usuario demo",
+      "method": "POST",
+      "url": "{{ _.auth_url }}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake",
+      "metaSortKey": 14,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.demo_email }}\",\n  \"password\": \"{{ _.demo_password }}\",\n  \"returnSecureToken\": true\n}"
+      }
+    },
+    {
+      "_id": "fld_me",
+      "_type": "request_group",
+      "parentId": "wrk_waitorbuy",
+      "name": "3 - Area do usuario (precisa de login)",
+      "metaSortKey": 15
+    },
+    {
+      "_id": "req_me_noauth",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist sem token (401)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/wishlist",
+      "metaSortKey": 16,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_me_badtoken",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist com token invalido (401)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/wishlist",
+      "metaSortKey": 17,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer token-falso"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_wl_add",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist: adicionar",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/wishlist",
+      "metaSortKey": 18,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"game_id\": {{ _.game_id }}}"
+      }
+    },
+    {
+      "_id": "req_wl_add_404",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist: jogo inexistente (404)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/wishlist",
+      "metaSortKey": 19,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"game_id\": 999999999\n}"
+      }
+    },
+    {
+      "_id": "req_wl_list",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist: listar",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/wishlist",
+      "metaSortKey": 20,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_cart",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist: carrinho otimizado",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/wishlist/cart",
+      "metaSortKey": 21,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_alert_create",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Alerta: criar (preco alvo alto, dispara)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/alerts",
+      "metaSortKey": 22,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"game_id\": {{ _.game_id }}, \"target_price_brl\": 9999.99}"
+      }
+    },
+    {
+      "_id": "req_alert_invalid",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Alerta: preco invalido (422)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/alerts",
+      "metaSortKey": 23,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"game_id\": 1,\n  \"target_price_brl\": -5\n}"
+      }
+    },
+    {
+      "_id": "req_alert_list",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Alerta: listar",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/alerts",
+      "metaSortKey": 24,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_evaluate",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Admin: avaliar alertas",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/admin/alerts/evaluate",
+      "metaSortKey": 25,
+      "headers": [
+        {
+          "name": "X-Admin-Token",
+          "value": "{{ _.admin_token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_evaluate_403",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Admin sem token (403)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/admin/alerts/evaluate",
+      "metaSortKey": 26,
+      "headers": [],
+      "parameters": []
+    },
+    {
+      "_id": "req_notifications",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Notificacoes: listar",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/me/notifications",
+      "metaSortKey": 27,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_notif_read",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Notificacao: marcar lida",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/notifications/{{ _.notification_id }}/read",
+      "metaSortKey": 28,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_device",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Registrar dispositivo (FCM)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/me/devices",
+      "metaSortKey": 29,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"fcm-token-de-teste-1234567890\",\n  \"platform\": \"web\"\n}"
+      }
+    },
+    {
+      "_id": "req_alert_del",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Alerta: remover",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/me/alerts/{{ _.alert_id }}",
+      "metaSortKey": 30,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "req_wl_del",
+      "_type": "request",
+      "parentId": "fld_me",
+      "name": "Wishlist: remover",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/me/wishlist/{{ _.game_id }}",
+      "metaSortKey": 31,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "_id": "uts_infra",
+      "_type": "unit_test_suite",
+      "parentId": "wrk_waitorbuy",
+      "name": "Infra"
+    },
+    {
+      "_id": "uts_infra_t0",
+      "_type": "unit_test",
+      "parentId": "uts_infra",
+      "name": "API e os 3 bancos estao no ar",
+      "requestId": "req_health",
+      "metaSortKey": 0,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.status).to.equal('ok');\nexpect(body.postgres).to.equal(true);\nexpect(body.mongo).to.equal(true);\nexpect(body.firestore).to.equal(true);"
+    },
+    {
+      "_id": "uts_public",
+      "_type": "unit_test_suite",
+      "parentId": "wrk_waitorbuy",
+      "name": "Publico"
+    },
+    {
+      "_id": "uts_public_t0",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Busca retorna jogos com ofertas ordenadas por preco",
+      "requestId": "req_search",
+      "metaSortKey": 0,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.count).to.be.above(0);\nconst p = body.results[0].offers.map(o => o.price_brl);\nexpect(p).to.deep.equal([...p].sort((a, b) => a - b));\nbody.results[0].offers.forEach(o => expect(['steam_brl', 'converted_usd']).to.include(o.price_origin));"
+    },
+    {
+      "_id": "uts_public_t1",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Busca sem resultado retorna lista vazia",
+      "requestId": "req_search_empty",
+      "metaSortKey": 1,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.count).to.equal(0);"
+    },
+    {
+      "_id": "uts_public_t2",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Busca sem q retorna 422",
+      "requestId": "req_search_invalid",
+      "metaSortKey": 2,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(422);"
+    },
+    {
+      "_id": "uts_public_t3",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Detalhe tem veredito valido e estatisticas",
+      "requestId": "req_game",
+      "metaSortKey": 3,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(['COMPRAR_AGORA', 'ESPERAR', 'NEUTRO']).to.include(body.verdict.verdict);\nexpect(body.stats).to.be.an('object');\nexpect(body.offers).to.be.an('array');"
+    },
+    {
+      "_id": "uts_public_t4",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Jogo inexistente retorna 404 no formato de erro",
+      "requestId": "req_game_404",
+      "metaSortKey": 4,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(404);\nexpect(body.error.code).to.equal('not_found');"
+    },
+    {
+      "_id": "uts_public_t5",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Historico tem pontos e flag de simulado",
+      "requestId": "req_history",
+      "metaSortKey": 5,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.points.length).to.be.above(0);\nexpect(body).to.have.property('has_simulated');"
+    },
+    {
+      "_id": "uts_public_t6",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Historico com days=0 retorna 422",
+      "requestId": "req_history_bad",
+      "metaSortKey": 6,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(422);"
+    },
+    {
+      "_id": "uts_public_t7",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Ofertas da home tem desconto",
+      "requestId": "req_deals",
+      "metaSortKey": 7,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.count).to.be.above(0);\nexpect(body.deals[0].offer.discount_pct).to.be.above(0);"
+    },
+    {
+      "_id": "uts_public_t8",
+      "_type": "unit_test",
+      "parentId": "uts_public",
+      "name": "Cambio USD/BRL disponivel",
+      "requestId": "req_fx",
+      "metaSortKey": 8,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.usd_brl_sell).to.be.above(0);"
+    },
+    {
+      "_id": "uts_auth",
+      "_type": "unit_test_suite",
+      "parentId": "wrk_waitorbuy",
+      "name": "Autenticacao"
+    },
+    {
+      "_id": "uts_auth_t0",
+      "_type": "unit_test",
+      "parentId": "uts_auth",
+      "name": "Login demo devolve idToken",
+      "requestId": "req_login",
+      "metaSortKey": 0,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.idToken).to.be.a('string');"
+    },
+    {
+      "_id": "uts_auth_t1",
+      "_type": "unit_test",
+      "parentId": "uts_auth",
+      "name": "Sem token retorna 401",
+      "requestId": "req_me_noauth",
+      "metaSortKey": 1,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(401);\nexpect(body.error.code).to.equal('unauthorized');"
+    },
+    {
+      "_id": "uts_auth_t2",
+      "_type": "unit_test",
+      "parentId": "uts_auth",
+      "name": "Token falso retorna 401",
+      "requestId": "req_me_badtoken",
+      "metaSortKey": 2,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(401);"
+    },
+    {
+      "_id": "uts_auth_t3",
+      "_type": "unit_test",
+      "parentId": "uts_auth",
+      "name": "Admin sem token retorna 403",
+      "requestId": "req_evaluate_403",
+      "metaSortKey": 3,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(403);"
+    },
+    {
+      "_id": "uts_flow",
+      "_type": "unit_test_suite",
+      "parentId": "wrk_waitorbuy",
+      "name": "Fluxo do usuario (rode a suite inteira)"
+    },
+    {
+      "_id": "uts_flow_t0",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Adicionar a wishlist (201)",
+      "requestId": "req_wl_add",
+      "metaSortKey": 0,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(201);\nexpect(body.added).to.equal(true);"
+    },
+    {
+      "_id": "uts_flow_t1",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Wishlist de jogo inexistente (404)",
+      "requestId": "req_wl_add_404",
+      "metaSortKey": 1,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(404);"
+    },
+    {
+      "_id": "uts_flow_t2",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Wishlist lista o jogo adicionado",
+      "requestId": "req_wl_list",
+      "metaSortKey": 2,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.items.length).to.be.above(0);"
+    },
+    {
+      "_id": "uts_flow_t3",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Carrinho calcula total",
+      "requestId": "req_cart",
+      "metaSortKey": 3,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.game_count).to.be.above(0);\nexpect(body.best_mix.total_brl).to.be.above(0);"
+    },
+    {
+      "_id": "uts_flow_t4",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Criar alerta (201)",
+      "requestId": "req_alert_create",
+      "metaSortKey": 4,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(201);\nexpect(body.alert_id).to.be.a('string');\nexpect(body.active).to.equal(true);"
+    },
+    {
+      "_id": "uts_flow_t5",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Alerta com preco negativo (422)",
+      "requestId": "req_alert_invalid",
+      "metaSortKey": 5,
+      "code": "const response = await insomnia.send();\nexpect(response.status).to.equal(422);"
+    },
+    {
+      "_id": "uts_flow_t6",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Listar alertas",
+      "requestId": "req_alert_list",
+      "metaSortKey": 6,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(200);\nexpect(body.items.length).to.be.above(0);"
+    },
+    {
+      "_id": "uts_flow_t7",
+      "_type": "unit_test",
+      "parentId": "uts_flow",
+      "name": "Registrar dispositivo (201)",
+      "requestId": "req_device",
+      "metaSortKey": 7,
+      "code": "const response = await insomnia.send();\nconst body = JSON.parse(response.data);\nexpect(response.status).to.equal(201);\nexpect(body.registered).to.equal(true);"
+    }
+  ]
+}
