@@ -1,0 +1,39 @@
+# Jogos acompanhados. `playtime_hours` e `genres` são ESTIMATIVAS EDITORIAIS usadas apenas como fixture
+# quando não há RAWG_API_KEY (o catálogo marca is_fixture=true). `search` sobrescreve o termo de busca na CheapShark.
+games:
+  - {title: "Hades", playtime_hours: 22, genres: [Roguelike, Ação]}
+  - {title: "Hades II", playtime_hours: 25, genres: [Roguelike, Ação]}
+  - {title: "Hollow Knight", playtime_hours: 27, genres: [Metroidvania, Ação]}
+  - {title: "Celeste", playtime_hours: 8, genres: [Plataforma, Indie]}
+  - {title: "Stardew Valley", playtime_hours: 53, genres: [Simulação, Indie]}
+  - {title: "Cyberpunk 2077", playtime_hours: 26, genres: [RPG, Ação]}
+  - {title: "The Witcher 3: Wild Hunt", search: "witcher 3 wild hunt", steam_app_id: 292030, playtime_hours: 51, genres: [RPG, Mundo aberto]}
+  - {title: "Elden Ring", playtime_hours: 60, genres: [RPG, Ação]}
+  - {title: "Red Dead Redemption 2", playtime_hours: 50, genres: [Ação, Mundo aberto]}
+  - {title: "Baldur's Gate 3", playtime_hours: 75, genres: [RPG, Estratégia]}
+  - {title: "Portal 2", playtime_hours: 8, genres: [Puzzle, Aventura]}
+  - {title: "Half-Life 2", playtime_hours: 13, genres: [FPS, Ação]}
+  - {title: "Terraria", playtime_hours: 40, genres: [Sandbox, Aventura]}
+  - {title: "Cuphead", playtime_hours: 6, genres: [Plataforma, Ação]}
+  - {title: "Disco Elysium", search: "disco elysium the final cut", playtime_hours: 25, genres: [RPG, Narrativo]}
+  - {title: "Dark Souls III", playtime_hours: 30, genres: [RPG, Ação]}
+  - {title: "DOOM Eternal", playtime_hours: 13, genres: [FPS, Ação]}
+  - {title: "Resident Evil 4", playtime_hours: 17, genres: [Terror, Ação]}
+  - {title: "God of War", playtime_hours: 20, genres: [Ação, Aventura]}
+  - {title: "Hogwarts Legacy", playtime_hours: 40, genres: [RPG, Mundo aberto]}
+  - {title: "Sekiro: Shadows Die Twice", search: "sekiro shadows die twice", playtime_hours: 30, genres: [Ação, Aventura]}
+  - {title: "Vampire Survivors", playtime_hours: 8, genres: [Roguelike, Indie]}
+  - {title: "Slay the Spire", playtime_hours: 25, genres: [Cartas, Roguelike]}
+  - {title: "Subnautica", playtime_hours: 25, genres: [Sobrevivência, Aventura]}
+  - {title: "Return of the Obra Dinn", playtime_hours: 9, genres: [Puzzle, Mistério]}
+  - {title: "INSIDE", playtime_hours: 3, genres: [Puzzle, Plataforma]}
+  - {title: "LIMBO", playtime_hours: 4, genres: [Puzzle, Plataforma]}
+  - {title: "Sid Meier's Civilization VI", search: "civilization vi", playtime_hours: 80, genres: [Estratégia, 4X]}
+  - {title: "Grand Theft Auto V", playtime_hours: 32, genres: [Ação, Mundo aberto]}
+  - {title: "Control Ultimate Edition", search: "control ultimate edition", playtime_hours: 12, genres: [Ação, Aventura]}
+  - {title: "Death Stranding", search: "death stranding directors cut", playtime_hours: 40, genres: [Ação, Aventura]}
+  - {title: "Outer Wilds", playtime_hours: 16, genres: [Aventura, Mistério]}
+  - {title: "Balatro", playtime_hours: 20, genres: [Cartas, Roguelike]}
+  - {title: "Hotline Miami", playtime_hours: 5, genres: [Ação, Indie]}
+  - {title: "A Plague Tale: Innocence", search: "a plague tale innocence", playtime_hours: 11, genres: [Aventura, Furtivo]}
+  - {title: "It Takes Two", playtime_hours: 14, genres: [Cooperativo, Aventura]}
