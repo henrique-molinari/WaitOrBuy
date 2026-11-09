@@ -1,5 +1,6 @@
 """Agendador local: roda `all` a cada ETL_INTERVAL_HOURS e aciona a avaliação de alertas no backend."""
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -27,10 +28,11 @@ def main() -> None:
     migrate.run()  # idempotente: garante esquema antes do primeiro ciclo
     first = True
     while True:
-        # O primeiro ciclo só roda se o banco estiver vazio, para não repetir ETL em cada restart.
+        # O primeiro ciclo só roda com ETL_RUN_ON_START=true (padrão: não), para que `make etl`/`make demo`
+        # sejam a única coleta inicial e a CheapShark não receba chamadas duplicadas (bloqueio por IP).
         try:
-            if first and _has_data():
-                log.info("dados já presentes; primeiro ciclo adiado até o próximo intervalo")
+            if first and (os.getenv("ETL_RUN_ON_START", "false").lower() != "true" or _has_data()):
+                log.info("primeiro ciclo adiado até o próximo intervalo (use `make etl` para coletar agora)")
             else:
                 all_jobs.run()
                 evaluate_alerts()
