@@ -75,12 +75,12 @@ Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
          "released":null,"description":null,"playtime_hours":22,"is_fixture":true},
  "offers":[{"...Offer..."}],"best_offer":{"...Offer..."},
  "stats":{"min_price_brl":24.9,"avg_price_brl":58.1,"avg_90d_brl":60.2,"points":181,"first_day":"2026-05-13","history_days":181,"has_simulated_history":true},
- "verdict":{"verdict":"COMPRAR_AGORA","confidence":"alta","reasons":["R$ 24,90 está no menor preço histórico ou muito perto (mínimo R$ 24,90)."],
+ "verdict":{"verdict":"COMPRAR_AGORA","confidence":"alta","based_on_simulated":true,"reasons":["R$ 24,90 está no menor preço histórico ou muito perto (mínimo R$ 24,90)."],
             "metrics":{"price_now":24.9,"min_ever":24.9,"avg_all":58.1,"avg_90d":60.2,"discount_pct":66.0,"days_to_next_sale":18,"sale_name":"Black Friday","history_days":181}},
  "next_sale":{"name":"Black Friday","start_date":"2026-11-27","days":18,"note":"verificar calendário oficial"},
  "playtime_hours":22,"price_per_hour":1.13}
 ```
-`verdict.verdict ∈ {COMPRAR_AGORA, ESPERAR, NEUTRO, INSUFICIENTE}`; `confidence ∈ {baixa, media, alta}`; `price_per_hour` e `playtime_hours` `null` se não houver tempo de jogo (> 0) ou preço; `best_offer` `null` se não há ofertas; `next_sale` pode ser `null`.
+`verdict.based_on_simulated` é `true` quando o histórico usado inclui dias simulados (a API acrescenta um motivo avisando). `verdict.verdict ∈ {COMPRAR_AGORA, ESPERAR, NEUTRO, INSUFICIENTE}`; `confidence ∈ {baixa, media, alta}`; `price_per_hour` e `playtime_hours` `null` se não houver tempo de jogo (> 0) ou preço; `best_offer` `null` se não há ofertas; `next_sale` pode ser `null`.
 
 ### GET /api/games/{game_id}/history?store=25&days=180
 `store` opcional (id); sem `store` → melhor preço diário entre lojas. `days` 1–730 (padrão 180).
@@ -123,7 +123,7 @@ Lojas completas primeiro (menor total), depois incompletas (menor total). `best_
 - `POST /api/me/devices` body `{"token":"<FCM>","platform":"web"}` → 201 `{"registered":true}`.
 
 ### Interno
-- `POST /api/admin/alerts/evaluate` header `X-Admin-Token` (403 `forbidden` se errado) → `{"alerts_checked":3,"triggered":1,"rearmed":0,"notifications_created":1,"push":"nao_configurado"}`; `push ∈ {"nao_configurado","enviado"}`.
+- `POST /api/admin/alerts/evaluate[?uid=<uid>]` (uid opcional restringe a um usuário; usado nos testes) header `X-Admin-Token` (403 `forbidden` se errado) → `{"alerts_checked":3,"triggered":1,"rearmed":0,"notifications_created":1,"push":"nao_configurado"}`; `push ∈ {"nao_configurado","enviado"}`.
 - CLI equivalente: `python -m app.cli evaluate-alerts`.
 
 ## 5. Regra "vale esperar?"
