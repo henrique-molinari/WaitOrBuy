@@ -116,11 +116,13 @@ Sem token/ inválido → 401 `unauthorized`.
 ```
 Lojas completas primeiro (menor total), depois incompletas (menor total). `best_mix.savings_vs_best_store_brl` é `null` se nenhuma loja é completa. Wishlist vazia → `stores: []`, `best_mix.total_brl: 0`.
 - `GET /api/me/alerts` → `{"items":[{"alert_id":"abc","game_id":1,"title":"Hades","target_price_brl":30.0,"store_id":null,"active":true,"last_triggered_price":null,"last_triggered_at":null}]}`
+- **Pedido do front (Home personalizada), opcional, o front funciona sem:** `GET /api/me/wishlist` → cada item com `verdict` (`COMPRAR_AGORA|ESPERAR|NEUTRO|INSUFICIENTE|null`, o mesmo de `/api/games/{id}`); `GET /api/me/alerts` → cada item com `current_price_brl` (menor oferta atual, `null` se sem oferta). Sem esses campos o front busca `/api/games/{id}` por alerta (até 4) e não mostra veredito na wishlist.
 - `POST /api/me/alerts` body `{"game_id":1,"target_price_brl":30.0,"store_id":null}` → 201 alerta criado (`target_price_brl` > 0; 404 jogo inexistente).
 - `DELETE /api/me/alerts/{alert_id}` → `{"alert_id":"abc","removed":true}` (404 se não existe).
 - `GET /api/me/notifications?limit=50` → `{"unread":1,"items":[{"id":"n1","title":"Hades chegou ao seu preço","body":"Hades por R$ 29,90 na Steam (alvo R$ 30,00).","game_id":1,"price_brl":29.9,"store_id":1,"created_at":"...","read":false}]}` (mais recentes primeiro).
 - `POST /api/me/notifications/{id}/read` → `{"id":"n1","read":true}` (404 se não existe).
 - `POST /api/me/devices` body `{"token":"<FCM>","platform":"web"}` → 201 `{"registered":true}`.
+- **Pedidos do front (push web), o front já está pronto:** (1) `send_push` deve mandar também `data={"game_id":"<id>"}` (o service worker `frontend/public/push-sw.js` abre `/#/jogo/<id>` ao clicar; sem `data` abre `/#/avisos`); (2) `DELETE /api/me/devices/{token}` para o usuário desligar no app (hoje só dá para desligar nas permissões do navegador); (3) remover o token do dispositivo quando o FCM devolver `UNREGISTERED`. Front precisa das variáveis `VITE_FIREBASE_*` e `VITE_FCM_VAPID_KEY` (ver `frontend/.env.example`).
 
 ### Interno
 - `POST /api/admin/alerts/evaluate[?uid=<uid>]` (uid opcional restringe a um usuário; usado nos testes) header `X-Admin-Token` (403 `forbidden` se errado) → `{"alerts_checked":3,"triggered":1,"rearmed":0,"notifications_created":1,"push":"nao_configurado"}`; `push ∈ {"nao_configurado","enviado"}`.

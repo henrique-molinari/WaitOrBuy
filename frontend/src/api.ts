@@ -1,12 +1,14 @@
-import { auth } from "./firebase";
+import { getToken, MOCK } from "./session";
+import { mockApi } from "./mock";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; authed?: boolean } = {}): Promise<T> {
+  if (MOCK) return (await mockApi(path, opts)) as T;
   const headers: Record<string, string> = {};
   if (opts.body) headers["Content-Type"] = "application/json";
   if (opts.authed) {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await getToken();
     if (!token) throw new Error("Faça login para continuar.");
     headers.Authorization = `Bearer ${token}`;
   }

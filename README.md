@@ -2,7 +2,7 @@
 
 Comparador de preços de jogos de PC: mostra o mesmo jogo em várias lojas, em reais, do mais barato ao mais caro; guarda histórico de preços; avisa quando o jogo chega ao preço desejado; e responde **"vale esperar?"** (preço atual × histórico × grandes liquidações). Projeto de Integração de Dados (PostgreSQL + MongoDB + Firebase, ETL em Python, API FastAPI).
 
-> **Status do frontend:** `frontend/` é um **protótipo mínimo** para exercitar a API (busca, jogo, gráfico, login, wishlist, alerta, notificações). A interface final será feita por outra pessoa em cima do contrato [docs/CONTRACTS.md](docs/CONTRACTS.md).
+> **Status do frontend:** `frontend/` tem a v1 da interface (busca, página do jogo com veredito e histórico, wishlist, alertas, avisos e login), construída sobre o contrato [docs/CONTRACTS.md](docs/CONTRACTS.md) e a identidade visual descrita em [frontend/DESIGN.md](frontend/DESIGN.md). Para ver as telas sem subir a stack: `cd frontend && npm install && npm run dev:mock` (dados fictícios; login `demo@waitorbuy.test` / `demo-123456`). Com a stack no ar (`make demo`), `npm run dev` usa a API real.
 
 ## Rodar a demonstração
 Pré-requisitos: Docker Desktop (Compose v2), `make` (no Windows: `choco install make` ou use `bash scripts/demo.sh`), internet para o ETL real (sem internet, o script usa o snapshot offline).
