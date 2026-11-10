@@ -1,0 +1,11 @@
+# Modo emulador (sem tocar no Firebase real): docker compose -f docker-compose.yml -f docker-compose.emulator.yml --profile emulator ...
+# Usado por scripts/test_emulator.sh e scripts/e2e.sh. O backend fala com o Auth/Firestore Emulator em vez do projeto real.
+services:
+  backend:
+    environment:
+      FIREBASE_PROJECT_ID: demo-waitorbuy
+      FIREBASE_CREDENTIALS: ""
+      FIREBASE_AUTH_EMULATOR_HOST: firebase:9099
+      FIRESTORE_EMULATOR_HOST: firebase:8080
+    depends_on:
+      firebase: {condition: service_healthy}
