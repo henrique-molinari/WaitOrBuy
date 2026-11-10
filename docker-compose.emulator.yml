@@ -1,5 +1,5 @@
-# Modo emulador (sem tocar no Firebase real): docker compose -f docker-compose.yml -f docker-compose.emulator.yml --profile emulator ...
-# Usado por scripts/test_emulator.sh e scripts/e2e.sh. O backend fala com o Auth/Firestore Emulator em vez do projeto real.
+# Modo EMULADOR (sem tocar no Firebase real; é o padrão de um clone novo, pelo .env.example).
+# Também usado por scripts/test_emulator.sh e scripts/e2e.sh, que o ativam à força com -f e --profile emulator. O backend fala com o Auth/Firestore Emulator em vez do projeto real.
 services:
   backend:
     environment:

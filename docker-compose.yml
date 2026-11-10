@@ -39,7 +39,6 @@ services:
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file: .env
-    volumes: ["./firebase/credentials.json:/run/secrets/firebase.json:ro"]
     ports: ["127.0.0.1:8001:8000"]
     depends_on:
       postgres: {condition: service_healthy}
