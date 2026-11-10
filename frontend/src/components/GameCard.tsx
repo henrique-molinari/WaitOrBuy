@@ -17,7 +17,7 @@ export function GameCard({ c, i, tag }: { c: Card; i: number; tag?: string }) {
         <span className="wob-data">{off > 0 && <span className="wob-off">−{off}%</span>}</span>
       </div>
       {c.verdict && <Verdict verdict={c.verdict} small />}
-      <span className="wob-cap"><StoreBadge id={c.offer.store_id} name={c.offer.store_name} />{c.stores ? ` · ${c.stores} lojas` : ""}{c.offer.is_estimated ? " · estimado" : ""}</span>
+      <span className="wob-cap"><StoreBadge id={c.offer.store_id} name={c.offer.store_name} estimated={c.offer.is_estimated} />{c.stores ? ` · ${c.stores} lojas` : ""}{c.offer.is_estimated ? " · estimado" : ""}</span>
       {c.genres && c.genres.length > 0 && <span className="wob-cap gtag">{c.genres.slice(0, 2).join(" · ")}</span>}
       {tag && <span className="wob-cap gtag">{tag}</span>}
     </a>

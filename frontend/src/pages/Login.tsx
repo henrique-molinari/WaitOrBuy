@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { signIn } from "../session";
+import { MOCK, signIn } from "../session";
 import { Err, PasswordField } from "../components";
 
 export default function Login({ done }: { done: () => void }) {
@@ -17,7 +17,7 @@ export default function Login({ done }: { done: () => void }) {
       <Err e={err} />
       <button className="wob-btn wob-btn--primary btn-block" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
       <p className="wob-hint">Ainda não tem conta? <a href="#/cadastro">Criar conta</a></p>
-      <p className="wob-hint">Demonstração: demo@waitorbuy.test / demo-123456</p>
+      {MOCK && <p className="wob-hint">Demonstração: demo@waitorbuy.test / demo-123456</p>}
     </form>
   );
 }

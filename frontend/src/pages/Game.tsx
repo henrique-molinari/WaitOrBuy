@@ -45,7 +45,7 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
       <section className="tight">
         <h2 className="t-display-md">Onde comprar</h2><p className="wob-hint">Ranking do menor ao maior preço, em reais.</p>
         <StoreRows offers={g.offers} />
-        <p className="wob-hint">Steam, Nuuvem e Instant Gaming informam o preço real em reais; nas demais lojas o valor é estimado pelo dólar PTAX e pode divergir.</p>
+        <p className="wob-hint">Steam, Epic, GOG, Nuuvem e Instant Gaming informam o preço real em reais (quando a loja não responde, mostramos a estimativa); nas demais lojas o valor é estimado pelo dólar PTAX e pode divergir.</p>
       </section>
 
       <section className="tight">
