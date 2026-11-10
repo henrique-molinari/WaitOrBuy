@@ -1,0 +1,133 @@
+/* Sistema de movimento do WaitOrBuy. Só transform/opacity (e stroke-dashoffset no SVG). Sem sombra, sem degradê.
+   Regra de ouro: o preço nunca conta; ele entra, não rola. Reduced-motion = só fade, sem deslocamento. */
+:root{
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --ease-in-out:cubic-bezier(0.77,0,0.175,1);
+  --ease-settle:cubic-bezier(0.34,1.4,0.64,1); /* leve overshoot: só carimbo do veredito e ponto da marca */
+  --dur-press:120ms;
+  --dur-hover:200ms;
+  --dur-enter:420ms;
+  --dur-hero:700ms;
+  --stagger:55ms;
+  --m-shift:14px;
+  --m-lift:-4px;
+}
+@media (prefers-reduced-motion:reduce){:root{--m-shift:0px;--m-lift:0px;--dur-enter:200ms;--dur-hero:200ms;--stagger:0ms}}
+
+@keyframes rise{from{opacity:0;transform:translateY(var(--m-shift))}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes mask-up{from{transform:translateY(105%)}to{transform:none}}
+@keyframes stamp{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:none}}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+
+/* Entrada genérica + escalonamento (--i vem do JSX, limitado a 8) */
+.rise{animation:rise var(--dur-enter) var(--ease-out) both;animation-delay:calc(var(--i,0) * var(--stagger))}
+.page{animation:rise var(--dur-enter) var(--ease-out) both}
+
+/* Título do hero: palavra a palavra, saindo de uma máscara */
+.words{display:inline}
+.words .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.08em;margin-bottom:-.08em}
+.words .w>span{display:inline-block;animation:mask-up var(--dur-hero) var(--ease-out) both;animation-delay:calc(var(--i,0) * 80ms + 120ms)}
+@media (prefers-reduced-motion:reduce){.words .w>span{animation-name:fade}}
+
+/* Selo do veredito: carimbo */
+.wob-verdict{animation:stamp 380ms var(--ease-settle) both;animation-delay:var(--vd,200ms)}
+@media (prefers-reduced-motion:reduce){.wob-verdict{animation-name:fade}}
+.hero-verdicts{display:flex;gap:var(--space-3);justify-content:center;margin-bottom:var(--space-5)}
+
+/* Skeleton: mesmas formas do conteúdo, pulso de opacidade (sem varredura em degradê) */
+.sk{background:var(--surface-sunk);border-radius:var(--radius-sm);animation:pulse 1.5s var(--ease-in-out) infinite}
+.sk--card{border-radius:var(--radius-lg)}
+.sk-card{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);padding:var(--space-4);background:var(--surface-raised);border:1px solid var(--hairline);border-radius:var(--radius-lg)}
+.sk-card .sk-img{width:100%;aspect-ratio:460/215}
+.sk-card .sk-t{height:28px;width:70%}
+.sk-card .sk-p{height:48px;width:45%}
+.sk-card .sk-c{height:16px;width:55%}
+.sk-line{height:20px}
+.sk-rows{border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden}
+.sk-rows .sk{border-radius:0;height:72px;border-bottom:1px solid var(--hairline)}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+
+/* Cartões: levanta no hover (só ponteiro fino), afunda no toque */
+.gcard{transition:transform var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
+.gthumb{width:100%;overflow:hidden;border-radius:var(--radius-sm);background:var(--surface-sunk)}
+.gthumb img{display:block;transition:transform 500ms var(--ease-out)}
+@media (hover:hover) and (pointer:fine){
+  .gcard:hover{transform:translateY(var(--m-lift))}
+  .gcard:hover .gthumb img{transform:scale(1.04)}
+  .wob-btn:hover{transform:translateY(-1px)}
+}
+.gcard:active{transform:scale(.985);transition-duration:var(--dur-press)}
+.wob-btn{transition:transform var(--dur-press) var(--ease-out),background-color var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out),opacity var(--dur-hover) var(--ease-out)}
+.wob-btn:active:not(:disabled){transform:scale(.97)}
+.wob-switch::after{transition:left var(--dur-hover) var(--ease-out),background-color var(--dur-hover) var(--ease-out)}
+.wob-input{transition:border-color var(--dur-hover) var(--ease-out)}
+/* Um só anel de foco, na caixa inteira (o input não desenha o dele) */
+.wob-input input:focus-visible{outline:0}
+.wob-input:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px;border-color:var(--ink)}
+
+/* Navegação: sublinhado que cresce do centro */
+a.nav{position:relative;border-bottom-color:transparent!important}
+a.nav::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--ink);transform:scaleX(0);transition:transform var(--dur-hover) var(--ease-out)}
+a.nav[aria-current="page"]::after{transform:scaleX(1)}
+@media (hover:hover) and (pointer:fine){a.nav:hover::after{transform:scaleX(1)}a.nav:hover{text-decoration:none}}
+
+/* Gráfico: a linha se desenha; pontos e rótulos entram depois */
+.wob-chart .line{stroke-dasharray:1;animation:draw 900ms var(--ease-in-out) both}
+.wob-chart .late{animation:fade 300ms var(--ease-out) 750ms both}
+@media (prefers-reduced-motion:reduce){.wob-chart .line{animation:none;stroke-dasharray:none}.wob-chart .late{animation-delay:0ms}}
+
+/* Troca de tema: dissolve (View Transitions) */
+::view-transition-old(root),::view-transition-new(root){animation-duration:260ms;animation-timing-function:var(--ease-out)}
+
+/* Abertura: marca W se desenha, ponto cai no lugar, nome sobe; some em fade */
+#boot{position:fixed;inset:0;z-index:100;display:grid;place-content:center;justify-items:center;gap:var(--space-4);background:var(--surface);transition:opacity 360ms var(--ease-out),visibility 0s linear 360ms}
+#boot.boot--out{opacity:0;visibility:hidden;pointer-events:none}
+.booted #boot{display:none}
+#boot svg{width:96px;height:96px;overflow:visible}
+#boot .bm-w{fill:none;stroke:var(--ink);stroke-width:7;stroke-miterlimit:4;stroke-dasharray:1;animation:draw 800ms var(--ease-in-out) 100ms both}
+#boot .bm-dot{fill:var(--buy);stroke:var(--ink);stroke-width:3.5;transform-box:fill-box;transform-origin:center;animation:stamp 420ms var(--ease-settle) 780ms both}
+#boot .bm-name{font-family:var(--font-display);font-weight:800;font-size:40px;line-height:1;color:var(--ink);animation:rise 500ms var(--ease-out) 900ms both}
+#boot .bm-bar{width:96px;height:3px;background:var(--hairline);overflow:hidden}
+#boot .bm-bar i{display:block;height:100%;background:var(--ink);transform-origin:left;animation:fill 1100ms var(--ease-in-out) 300ms both}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){#boot .bm-w{animation:none;stroke-dasharray:none}#boot .bm-dot,#boot .bm-name{animation-name:fade}#boot .bm-bar i{animation:none}}
+
+/* Ícone de tema: sol e lua trocam de lugar girando; só o ativo aparece */
+@keyframes fade-out{to{opacity:0}}
+.ti{transform-box:fill-box;transform-origin:center;transition:transform 420ms var(--ease-out),opacity 220ms var(--ease-out)}
+.ti[data-on="false"]{opacity:0;transform:rotate(-70deg) scale(.5)}
+.ti[data-on="true"]{opacity:1;transform:none}
+.ti-sun[data-on="false"]{transform:rotate(70deg) scale(.5)}
+.icon-btn{transition:transform var(--dur-press) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
+.icon-btn:active{transform:scale(.92)}
+@media (hover:hover) and (pointer:fine){.icon-btn:hover{border-color:var(--ink)}.theme-btn:hover .ti[data-on="true"]{transform:rotate(18deg)}}
+@media (prefers-reduced-motion:reduce){.ti{transition:opacity 200ms linear}.ti[data-on]{transform:none!important}}
+
+/* Olho de senha: o risco se desenha por cima (e corta o olho), a pupila encolhe */
+.eye-btn svg .eye-cut,.eye-btn svg .eye-slash{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 260ms var(--ease-out)}
+.eye-btn svg .eye-cut{stroke:var(--surface-raised);stroke-width:6}
+.eye-btn svg .eye-pupil{transform-box:fill-box;transform-origin:center;transition:transform 260ms var(--ease-out),opacity 260ms var(--ease-out)}
+.eye-btn svg[data-off="true"] .eye-cut,.eye-btn svg[data-off="true"] .eye-slash{stroke-dashoffset:0}
+.eye-btn svg[data-off="true"] .eye-pupil{transform:scale(.6);opacity:.5}
+.eye-btn:active svg{transform:scale(.88);transition:transform var(--dur-press) var(--ease-out)}
+@media (hover:hover) and (pointer:fine){.eye-btn:hover{color:var(--ink)}}
+@media (prefers-reduced-motion:reduce){.eye-btn svg *{transition-duration:1ms!important}}
+
+/* Dissolução skeleton → conteúdo (mesma célula de grid, sem salto de layout) */
+.xf{display:grid}
+.xf>*{grid-area:1/1;min-width:0}
+.xf-leave{animation:fade-out 220ms var(--ease-out) both;pointer-events:none}
+.fadein{animation:fade 300ms var(--ease-out) both}
+.rule i{transition:background-color var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
+.rule{transition:color var(--dur-hover) var(--ease-out)}
+
+/* Push: sino balança uma vez; toast entra/sai por baixo (transição de posição, não keyframe que reinicia) */
+@keyframes swing{0%{transform:rotate(0)}25%{transform:rotate(14deg)}55%{transform:rotate(-10deg)}80%{transform:rotate(5deg)}100%{transform:none}}
+.bell{transform-origin:50% 8%;animation:swing 800ms var(--ease-out) 500ms both}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,calc(100% + var(--space-5)))}to{opacity:1;transform:translate(-50%,0)}}
+.toast{animation:toast-in 380ms var(--ease-out) backwards;transition:transform 220ms var(--ease-out),opacity 220ms var(--ease-out)}
+.toast--out{opacity:0;transform:translate(-50%,calc(100% + var(--space-5)))}
+.dot{transition:background-color var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
+@media (prefers-reduced-motion:reduce){.bell{animation:none}.toast{animation-name:fade;transform:translateX(-50%)}.toast--out{transform:translateX(-50%)}}

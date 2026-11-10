@@ -1,3 +1,10 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Martian+Mono:wght@500&family=Schibsted+Grotesk:wght@400;600&display=swap" rel="stylesheet"><title>WaitOrBuy</title></head>
-<body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<html lang="pt-BR"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Martian+Mono:wght@500&family=Schibsted+Grotesk:wght@400;600&display=swap" rel="stylesheet"><title>WaitOrBuy</title>
+<script>try{var d=document.documentElement,t=localStorage.getItem("wob-theme");if(t)d.dataset.theme=t;if(sessionStorage.getItem("wob-booted"))d.className="booted"}catch(e){}</script></head>
+<body>
+<div id="boot" role="status" aria-label="Carregando WaitOrBuy">
+<svg viewBox="0 0 64 64" aria-hidden="true"><path class="bm-w" pathLength="1" d="M7 13 L22 51 L32 25 L42 51 L57 13"/><circle class="bm-dot" cx="42" cy="51" r="8"/></svg>
+<span class="wob-word bm-name" aria-hidden="true">Wait<i>Or</i><u>Buy</u></span>
+<span class="bm-bar" aria-hidden="true"><i></i></span>
+</div>
+<div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>

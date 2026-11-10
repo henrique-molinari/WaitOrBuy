@@ -1,10 +1,13 @@
 import { api, brl } from "../api";
+import { PushStatusPanel } from "../push";
+import type { User } from "../session";
 
-export default function Avisos({ items }: { items: any[] }) {
+export default function Avisos({ items, user }: { items: any[]; user: User }) {
   const read = (id: string) => api(`/api/me/notifications/${id}/read`, { method: "POST", authed: true }).catch(() => {});
   return (
     <div className="stack">
       <h1 className="t-display-lg">Avisos</h1>
+      <PushStatusPanel uid={user.uid} />
       {items.length === 0 ? <p className="body">Nenhum aviso ainda. Quando um jogo chegar ao seu preço, ele aparece aqui.</p> : <div role="list" aria-live="polite">
         {items.map((n) => (
           <div role="listitem" key={n.id} className={`item${n.read ? "" : " unread item--hit"}`}>

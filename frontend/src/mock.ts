@@ -136,7 +136,7 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
   }
   if (p === "/api/fx") return { rate_date: iso(new Date()), usd_brl_buy: 5.5007, usd_brl_sell: 5.5013, source: "BCB PTAX (fictício)", fetched_at: new Date().toISOString() };
 
-  if (p === "/api/me/wishlist" && m === "GET") return { items: S.wishlist.map((w) => { const g = find(w.game_id)!; return { ...card(g), added_at: w.added_at, best_offer: g.offers[0] ?? null }; }) };
+  if (p === "/api/me/wishlist" && m === "GET") return { items: S.wishlist.map((w) => { const g = find(w.game_id)!; return { ...card(g), added_at: w.added_at, best_offer: g.offers[0] ?? null, verdict: g.offers.length ? analyze(g).verdict.verdict : null }; }) };
   if (p === "/api/me/wishlist" && m === "POST") {
     const id = Number(o.body?.game_id); if (!find(id)) throw err("Jogo não encontrado.");
     if (!S.wishlist.some((w) => w.game_id === id)) S.wishlist.push({ game_id: id, added_at: new Date().toISOString() }); save(); return { game_id: id, added: true };
@@ -152,7 +152,7 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
     const total = Math.round(mix.reduce((a, i) => a + i.price_brl, 0) * 100) / 100, bestComplete = stores.find((s) => s.complete);
     return { game_count: gs.length, stores, best_mix: { total_brl: total, items: mix, missing_games: gs.filter((x) => !x.offers.length).map((x) => ({ game_id: x.d.id, title: x.d.title })), savings_vs_best_store_brl: bestComplete ? Math.round((bestComplete.total_brl - total) * 100) / 100 : null } };
   }
-  if (p === "/api/me/alerts" && m === "GET") return { items: S.alerts.map((a) => ({ ...a, title: find(a.game_id)!.d.title })) };
+  if (p === "/api/me/alerts" && m === "GET") return { items: S.alerts.map((a) => ({ ...a, title: find(a.game_id)!.d.title, current_price_brl: find(a.game_id)!.offers[0]?.price_brl ?? null })) };
   if (p === "/api/me/alerts" && m === "POST") {
     const id = Number(o.body?.game_id), t = Number(o.body?.target_price_brl), g = find(id);
     if (!g) throw err("Jogo não encontrado."); if (!(t > 0)) throw err("O preço alvo deve ser maior que zero.");

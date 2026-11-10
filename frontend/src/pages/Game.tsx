@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import type { User } from "../session";
 import { api, brl } from "../api";
-import { Cap, Err, PriceChart, StoreRows, Verdict } from "../ui";
+import { PushPrompt } from "../push";
+import { pushRecent } from "../recent";
+import { Cap, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../ui";
 
 export default function Game({ id, user }: { id: number; user: User | null }) {
   const [g, setG] = useState<any>(null); const [h, setH] = useState<any>(null); const [days, setDays] = useState(90);
-  const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState("");
+  const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState(""); const [made, setMade] = useState<number | null>(null);
   useEffect(() => { setG(null); setErr(null); api(`/api/games/${id}`).then(setG).catch((e) => setErr(e.message)); }, [id]);
+  useEffect(() => { if (g) pushRecent({ id, title: g.title, thumb: g.thumb ?? null }); }, [g, id]);
   useEffect(() => { api(`/api/games/${id}/history?days=${days}`).then(setH).catch((e) => setErr(e.message)); }, [id, days]);
   if (err && !g) return <Err e={err} />;
-  if (!g) return <div className="skel" />;
-  const act = async (fn: () => Promise<unknown>, ok: string) => { setErr(null); setMsg(null); try { await fn(); setMsg(ok); } catch (e: any) { setErr(e.message); } };
+  const view = () => {
+  const act = async (fn: () => Promise<unknown>, ok: string): Promise<boolean> => { setErr(null); setMsg(null); try { await fn(); setMsg(ok); return true; } catch (e: any) { setErr(e.message); return false; } };
   const best = g.best_offer, v = g.verdict, s = g.stats;
   const tnum = Number(target.replace(",", "."));
   const hint = s && tnum > 0 && (tnum <= s.min_price_brl
@@ -30,11 +33,11 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
         <div className="price-line">
           <div className="tight" style={{ gap: "var(--space-2)" }}>
             <Cap>MENOR PREÇO AGORA{best ? ` · ${best.store_name.toUpperCase()}` : ""}</Cap>
-            <span className="t-price-hero wob-num">{brl(best?.price_brl)}</span>
+            <span className="t-price-hero wob-num rise" style={{ animationDelay: "120ms" }}>{brl(best?.price_brl)}</span>
           </div>
-          <Verdict verdict={v.verdict} />
+          <span style={{ "--vd": "350ms" } as React.CSSProperties}><Verdict verdict={v.verdict} /></span>
         </div>
-        <p className="t-body-lg reason">{v.reasons[0]}</p>
+        <p className="t-body-lg reason rise" style={{ animationDelay: "450ms" }}>{v.reasons[0]}</p>
         {v.reasons.slice(1).map((r: string, i: number) => <p key={i} className="wob-hint">{r}</p>)}
         <Cap>CONFIANÇA {String(v.confidence).toUpperCase()}{g.next_sale ? ` · ${g.next_sale.name.toUpperCase()} EM ${g.next_sale.days} DIAS` : ""}</Cap>
       </section>
@@ -64,12 +67,15 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
             <div className="wob-input"><span>R$</span><input id="alvo" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} /></div></div>
           {hint && <p className="wob-hint">{hint}</p>}
           <div className="line">
-            <button className="wob-btn wob-btn--primary" disabled={!(tnum > 0)} onClick={() => act(() => api("/api/me/alerts", { method: "POST", body: { game_id: id, target_price_brl: tnum }, authed: true }), `Alerta criado: avisamos quando chegar a ${brl(tnum)}.`)}>Criar alerta</button>
+            <button className="wob-btn wob-btn--primary" disabled={!(tnum > 0)} onClick={() => act(() => api("/api/me/alerts", { method: "POST", body: { game_id: id, target_price_brl: tnum }, authed: true }), `Alerta criado: avisamos quando chegar a ${brl(tnum)}.`).then((done) => done && setMade(tnum))}>Criar alerta</button>
             <button className="wob-btn wob-btn--secondary" onClick={() => act(() => api("/api/me/wishlist", { method: "POST", body: { game_id: id }, authed: true }), "Adicionado à wishlist.")}>Adicionar à wishlist</button>
           </div>
         </>}
+        {user && made !== null && <PushPrompt uid={user.uid} title="Avisar também neste dispositivo?" body={`Ative as notificações para saber na hora quando ${g.title} chegar a ${brl(made)}.`} />}
         <Err e={err} />{msg && <p role="status" className="notice notice--buy">{msg}</p>}
       </section>
     </div>
   );
+  };
+  return <Loadable ready={!!g} skeleton={<GameSkeleton />}>{view}</Loadable>;
 }
