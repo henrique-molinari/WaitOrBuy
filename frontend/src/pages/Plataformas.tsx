@@ -10,14 +10,14 @@ export default function Plataformas() {
   return (
     <div className="stack">
       <div className="tight"><a className="plain" href="#/">← Voltar</a><h1 className="t-display-lg">Lojas conectadas</h1>
-        <p className="wob-hint">Preços reais em reais vêm direto da loja (Steam, Nuuvem, Instant Gaming). As demais lojas vêm em dólar pela CheapShark e são convertidas pelo PTAX do Banco Central.</p></div>
+        <p className="wob-hint">Preços reais em reais vêm direto da loja (Steam, Epic, GOG, Nuuvem, Instant Gaming). As demais lojas, e as ofertas que essas lojas não confirmaram, vêm em dólar pela CheapShark e são convertidas pelo PTAX do Banco Central.</p></div>
       <Err e={err} />
       <Loadable ready={!!data || !!err} skeleton={<div className="sk sk--card" style={{ height: 240 }} />}>{() => data && <>
         <section className="tight" aria-label="Lojas">
           <h2 className="t-display-md">{data.count} lojas · {data.total_games} jogos no catálogo</h2>
           <ul className="plist">{data.platforms.map((p) => (
             <li key={p.store_id} className="item">
-              <div className="grow"><StoreBadge id={p.store_id} name={p.name} /><small>{p.source}</small></div>
+              <div className="grow"><StoreBadge id={p.store_id} name={p.name} estimated={p.price_kind === "usd_converted" ? true : p.price_kind === "brl_real" ? false : undefined} /><small>{p.source}</small></div>
               <span className="wob-data">{p.games} jogos</span><Cap>{KIND_LABEL[p.price_kind]} · {when(p.last_captured_at)}</Cap>
             </li>))}</ul>
         </section>
