@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --no-audit --no-fund
 COPY . .
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=http://localhost:8001
 ARG VITE_AUTH_EMULATOR=http://localhost:9099
 ARG VITE_FIRESTORE_EMULATOR_HOST=localhost
 ARG VITE_FIRESTORE_EMULATOR_PORT=8080
