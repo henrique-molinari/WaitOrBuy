@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { signIn } from "../session";
-import { Err, PasswordField } from "../ui";
+import { Err, PasswordField } from "../components";
 
 export default function Login({ done }: { done: () => void }) {
   const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);

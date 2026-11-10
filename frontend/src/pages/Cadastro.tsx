@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { signIn } from "../session";
-import { Err, PasswordField } from "../ui";
+import { Err, PasswordField } from "../components";
 
 const MIN = 6; // mínimo do Firebase Auth
 

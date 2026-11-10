@@ -115,9 +115,24 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
   let r: RegExpMatchArray | null;
 
   if (p === "/api/search") {
-    const t = (q.get("q") ?? "").trim(); if (!t) throw err("Digite pelo menos 1 caractere para buscar.");
-    const res = DB.filter((g) => norm(g.d.title).includes(norm(t))).slice(0, Number(q.get("limit") ?? 20)).map((g) => ({ ...card(g), best_offer: g.offers[0] ?? null, offers: g.offers, is_fixture: true }));
-    return { query: t, count: res.length, results: res };
+    const t = (q.get("q") ?? "").trim(), stores = q.getAll("store").map(Number), maxP = Number(q.get("max_price") ?? 0), minD = Number(q.get("min_discount") ?? 0), sort = q.get("sort") ?? "relevance";
+    const facet = new Map<number, { store_id: number; name: string; count: number }>();
+    let res = DB.filter((g) => norm(g.d.title).includes(norm(t))).map((g) => {
+      g.offers.forEach((o) => { const f = facet.get(o.store_id) ?? { store_id: o.store_id, name: o.store_name, count: 0 }; f.count++; facet.set(o.store_id, f); });
+      const offers = g.offers.filter((o) => (!stores.length || stores.includes(o.store_id)) && (!maxP || o.price_brl <= maxP) && o.discount_pct >= minD);
+      return { ...card(g), best_offer: offers[0] ?? null, offers, is_fixture: true, genres: g.d.genres, discovered: false };
+    }).filter((r) => r.offers.length);
+    if (sort === "price") res.sort((a, b) => a.best_offer!.price_brl - b.best_offer!.price_brl);
+    else if (sort === "discount") res.sort((a, b) => Math.max(...b.offers.map((o) => o.discount_pct)) - Math.max(...a.offers.map((o) => o.discount_pct)));
+    else if (sort === "title") res.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === "stores") res.sort((a, b) => b.offers.length - a.offers.length);
+    res = res.slice(0, Number(q.get("limit") ?? 24));
+    return { query: t, count: res.length, results: res, facets: [...facet.values()].sort((a, b) => b.count - a.count), discovered: 0, live_error: null };
+  }
+  if (p === "/api/suggest") { const t = norm(q.get("q") ?? ""); return { query: t, suggestions: DB.filter((g) => norm(g.d.title).includes(t)).slice(0, 8).map((g) => ({ game_id: g.d.id, slug: card(g).slug, title: g.d.title })) }; }
+  if (p === "/api/platforms") {
+    const platforms = STORES.map((s) => ({ store_id: s.id, name: s.name, domain: null, price_kind: s.id === 1 ? "brl_real" : "usd_converted", source: s.id === 1 ? "Steam (API oficial)" : "CheapShark (USD convertido pelo PTAX)", games: DB.filter((g) => g.offers.some((o) => o.store_id === s.id)).length, last_captured_at: new Date().toISOString() }));
+    return { count: platforms.length, platforms, total_games: DB.length, providers: [{ name: "CheapShark", role: "Preços e busca (USD)", needs_key: false, enabled: true }, { name: "Steam Store API", role: "Preço real em BRL", needs_key: false, enabled: true }] };
   }
   if (p === "/api/deals/home") {
     const deals = DB.filter((g) => g.offers.length).map((g) => ({ ...card(g), offer: g.offers[0] })).sort((a, b) => b.offer.discount_pct - a.offer.discount_pct).slice(0, Number(q.get("limit") ?? 12));

@@ -160,3 +160,20 @@ form.stack{margin:0 auto}
 .toast-t b{display:block;font-size:15px;line-height:20px}
 .toast-t small{display:block;color:var(--ink-muted);font-size:13px;line-height:16px}
 @media (max-width:640px){.toast{flex-wrap:wrap}.toast-t{flex:1 1 100%;order:-1}}
+
+/* ---- busca, filtros, selos de loja ---- */
+.busca{display:grid;grid-template-columns:260px 1fr;gap:var(--space-5);align-items:start}
+.filters{display:flex;flex-direction:column;gap:var(--space-3);position:sticky;top:var(--space-3)}
+.filters .head{display:flex;justify-content:space-between;align-items:center}
+.filters select{width:100%;background:transparent;border:0;font:inherit;color:inherit;height:100%}
+.filters .stores{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);max-height:320px;overflow:auto}
+.chk{display:flex;align-items:center;gap:var(--space-2);cursor:pointer}
+.chk span{flex:1}.chk small{color:var(--ink-muted,inherit)}
+.sbox{position:relative}
+.sug{position:absolute;left:0;right:0;top:100%;z-index:20;margin:4px 0 0;padding:4px 0;list-style:none;background:var(--surface,#fff);border:2px solid var(--ink);border-radius:var(--radius-sm)}
+.sug li a{display:block;padding:10px 16px;color:var(--ink);text-decoration:none}
+.sug li[aria-selected="true"] a,.sug li a:hover{background:var(--surface-sunk)}
+.sbadge{display:inline-block;padding:1px 8px;border:1.5px solid currentColor;border-radius:var(--radius-pill);font-size:12px;line-height:20px;margin:0 4px 4px 0;opacity:.75}
+.sbadge--real{opacity:1;font-weight:700;border-color:var(--buy);color:var(--ink);background:color-mix(in srgb,var(--buy) 18%,transparent)}
+.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+@media (max-width:860px){.busca{grid-template-columns:1fr}.filters{position:static}}
