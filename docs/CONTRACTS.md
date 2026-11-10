@@ -42,7 +42,7 @@ users/{uid}/devices/{token}         {token, platform:string|null, created_at:tim
 ```
 Regras (`firebase/firestore.rules`): cada usuário só lê/escreve `users/{uid}/**` com `request.auth.uid == uid`; todo o resto negado. O backend (Admin SDK) ignora as regras e valida o token ele mesmo. Avaliação de alertas usa `collection_group("alerts")`.
 
-## 4. API (FastAPI) — base `http://localhost:8000`, docs em `/docs`
+## 4. API (FastAPI) — base `http://localhost:8001`, docs em `/docs`
 Erros: `{"error": {"code": "<codigo>", "message": "<texto pt-BR>"}}` — códigos: `validation_error` (422), `not_found` (404), `unauthorized` (401), `forbidden` (403), `conflict` (409), `internal_error` (500).
 Auth: `Authorization: Bearer <ID token do Firebase Auth>`; admin: header `X-Admin-Token: <ADMIN_TOKEN>`.
 Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
@@ -53,19 +53,34 @@ Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
  "discount_pct": 50.0, "price_origin": "converted_usd", "is_estimated": true,
  "deal_url": "https://www.cheapshark.com/redirect?dealID=...", "captured_at": "2026-11-09T18:00:00Z"}
 ```
-`is_estimated = (price_origin == "converted_usd")`. `normal_price_brl` pode ser `null`.
+`price_origin` ∈ `steam_brl | converted_usd | nuuvem_brl | instantgaming_brl | epic_brl | gog_brl`; `is_estimated = (price_origin == "converted_usd")`. `normal_price_brl` pode ser `null`.
 
 ### GET /health → 200
 `{"status":"ok","postgres":true,"mongo":true,"firestore":true}` (503 com `status:"degraded"` se algum cair).
 
-### GET /api/search?q=hades&limit=20
-`q` 1–100 chars (422 se vazio). Retorna jogos acompanhados cujo título contém `q`, ofertas ordenadas do menor preço ao maior.
+### GET /api/search
+Parâmetros (todos opcionais): `q` (0–100 chars; vazio = navega o catálogo), `limit` 1–60 (24), `store` (repetível: `?store=1&store=101`), `max_price` (>0, BRL), `min_discount` 0–100, `sort` = `relevance|price|discount|title|stores` (422 `invalid_sort`), `live` (true: consulta as lojas ao vivo quando o termo não foi pesquisado nas últimas 6 h).
+Retorna jogos acompanhados cujo título contém todas as palavras de `q`; `offers` já filtradas e ordenadas do menor preço ao maior. `facets` conta ofertas por loja **antes** dos filtros (alimenta o filtro de lojas); `discovered` = jogos novos cadastrados nesta busca; `live_error` = aviso quando uma fonte externa não respondeu.
 ```json
-{"query":"hades","count":1,"results":[{
-  "game_id":1,"slug":"hades","title":"Hades","thumb":"https://.../header.jpg",
+{"query":"hades","count":1,"discovered":0,"live_error":null,
+ "facets":[{"store_id":1,"name":"Steam","count":2}],
+ "results":[{"game_id":1,"slug":"hades","title":"Hades","thumb":"https://.../header.jpg",
   "best_offer":{"...Offer..."},"offers":[{"...Offer, ordenadas por price_brl asc..."}],
-  "is_fixture":true}]}
+  "is_fixture":true,"genres":["Roguelike"],"discovered":false}]}
 ```
+
+### GET /api/suggest?q=ha
+Autocompletar (só banco local): `{"query":"ha","suggestions":[{"game_id":1,"slug":"hades","title":"Hades"}]}` (até 8).
+
+### GET /api/platforms
+Lojas conectadas com ofertas reais e provedores de dados.
+```json
+{"count":13,"total_games":38,
+ "platforms":[{"store_id":101,"name":"Instant Gaming","domain":"instant-gaming.com","price_kind":"brl_real",
+   "source":"Instant Gaming (sitemap + página do produto)","games":26,"last_captured_at":"2026-11-10T..."}],
+ "providers":[{"name":"CheapShark","role":"...","needs_key":false,"enabled":true}]}
+```
+`price_kind` (calculado das ofertas vigentes de cada loja): `brl_real` (todas em R$ real: Steam, Nuuvem, Instant Gaming, e GOG/Epic quando a loja respondeu), `mixed` (parte real, parte ainda estimada) ou `usd_converted` (só estimativa CheapShark × PTAX).
 
 ### GET /api/games/{game_id}
 404 `not_found` se o jogo não existe.
