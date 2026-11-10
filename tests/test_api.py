@@ -39,8 +39,8 @@ def test_search_sorted_with_origin(client):
 
 
 def test_search_validation_and_like_escape(client):
-    r = client.get("/api/search", params={"q": ""})
-    assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
+    r = client.get("/api/search", params={"q": "hades", "sort": "nope"})
+    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_sort"
     assert client.get("/api/search", params={"q": "%"}).json()["count"] == 0  # % tratado como texto literal
     assert client.get("/api/search", params={"q": "'; DROP TABLE games;--"}).json()["count"] == 0
     assert client.get("/api/search", params={"q": "hades", "limit": 0}).status_code == 422
@@ -178,3 +178,124 @@ def test_rate_limit_returns_429_json(client, monkeypatch):
     r = client.get("/api/fx")
     assert r.json()["error"]["code"] == "rate_limited"
     m._HITS.clear()
+
+
+def test_search_filters_sort_and_facets(client):
+    allr = client.get("/api/search", params={"q": ""}).json()  # sem termo = navegar o catálogo
+    assert allr["count"] == 2 and {f["name"] for f in allr["facets"]} == {"Steam", "Epic Games Store", "GOG"}
+    only_gog = client.get("/api/search", params={"q": "hades", "store": 7}).json()
+    assert [o["store_name"] for o in only_gog["results"][0]["offers"]] == ["GOG"]
+    assert client.get("/api/search", params={"q": "hades", "max_price": 60}).json()["count"] == 0
+    assert client.get("/api/search", params={"q": "", "min_discount": 40}).json()["count"] == 2
+    assert client.get("/api/search", params={"q": "", "min_discount": 60}).json()["count"] == 0
+    by_price = client.get("/api/search", params={"q": "", "sort": "price"}).json()["results"]
+    assert [r["title"] for r in by_price] == ["Celeste", "Hades"]  # R$ 20 antes de R$ 68,93
+    by_title = client.get("/api/search", params={"q": "", "sort": "title"}).json()["results"]
+    assert [r["title"] for r in by_title] == ["Celeste", "Hades"]
+
+
+def test_suggest_and_platforms(client):
+    s = client.get("/api/suggest", params={"q": "ha"}).json()
+    assert [x["title"] for x in s["suggestions"]] == ["Hades"]
+    p = client.get("/api/platforms").json()
+    assert p["count"] == 3 and p["total_games"] == 3
+    kinds = {x["name"]: x["price_kind"] for x in p["platforms"]}
+    assert kinds == {"Steam": "brl_real", "Epic Games Store": "usd_converted", "GOG": "usd_converted"}
+    assert {x["name"] for x in p["providers"]} >= {"CheapShark", "Nuuvem", "Instant Gaming"}
+
+
+def test_friendly_http_errors_are_portuguese_and_hide_internals(client):
+    r = client.get("/api/nao-existe")
+    assert r.status_code == 404 and r.json()["error"] == {"code": "not_found", "message": "Não encontramos o que você procurou."}
+    r = client.put("/api/search")
+    assert r.status_code == 405 and r.json()["error"]["code"] == "method_not_allowed" and "permitida" in r.json()["error"]["message"]
+    r = client.get("/api/games/abc")
+    assert r.status_code == 422 and r.json()["error"]["message"] == "Entrada inválida em 'path.game_id': precisa ser um número inteiro."
+    r = client.get("/api/me/wishlist")
+    assert r.status_code == 401 and r.json()["error"]["code"] == "unauthorized"
+
+
+def test_upstream_failures_become_503_not_500(client, monkeypatch):
+    from google.api_core.exceptions import FailedPrecondition
+    from pymongo.errors import ServerSelectionTimeoutError
+
+    def boom_mongo(ids):
+        raise ServerSelectionTimeoutError("mongo fora")
+
+    monkeypatch.setattr("app.routers.search.mongo_meta", boom_mongo)
+    r = client.get("/api/search", params={"q": "had", "live": "false"})
+    assert r.status_code == 503 and r.json()["error"]["code"] == "servico_indisponivel"
+    assert "mongo" not in r.text.lower() and r.headers["retry-after"] == "30"
+
+    def boom_fs():
+        raise FailedPrecondition("The query requires an index")
+
+    monkeypatch.setattr("app.firebase.firestore_client", boom_fs)
+    r = client.post("/api/admin/alerts/evaluate", headers=ADMIN)
+    assert r.status_code == 503 and "index" not in r.text.lower() and r.json()["error"]["code"] == "servico_indisponivel"
+
+
+def test_unhandled_error_is_generic_500(client, monkeypatch):
+    def boom(ids):
+        raise ValueError("segredo interno")
+
+    monkeypatch.setattr("app.routers.search.mongo_meta", boom)
+    r = client.get("/api/search", params={"q": "had", "live": "false"})
+    assert r.status_code == 500 and "segredo" not in r.text and r.json()["error"]["code"] == "internal_error"
+
+
+def test_alert_evaluation_falls_back_when_the_collection_group_index_is_missing():
+    from google.api_core.exceptions import FailedPrecondition
+
+    from app.services import alerts
+
+    class Doc:
+        def __init__(self, active):
+            self.active = active
+
+        def to_dict(self):
+            return {"active": self.active}
+
+    class Filtered:
+        def stream(self):
+            raise FailedPrecondition("index required")
+
+    class Group:
+        def where(self, **_):
+            return Filtered()
+
+        def stream(self):
+            return iter([Doc(True), Doc(False), Doc(True)])
+
+    class Fs:
+        def collection_group(self, name):
+            return Group()
+
+    got = list(alerts._active_alerts(Fs()))
+    assert len(got) == 2 and all(d.active for d in got)
+
+
+def test_suggest_edge_cases_and_platform_kind_reflects_real_origins(client, world):
+    assert client.get("/api/suggest", params={"q": "zzzz"}).json()["suggestions"] == []
+    assert client.get("/api/suggest", params={"q": "100%_"}).status_code == 200  # curingas do LIKE são escapados
+    assert client.get("/api/suggest").status_code == 422
+    conn = world["conn"]
+    conn.execute("INSERT INTO price_snapshots (game_id, store_id, snapshot_date, price_brl, price_original, currency_original, normal_price_brl, "
+                 "discount_pct, deal_url, price_origin) VALUES (2, 7, %s, 30, 30, 'BRL', 30, 0, 'https://gog.test/2', 'gog_brl')", (world["today"],))
+    kinds = {x["name"]: x for x in client.get("/api/platforms").json()["platforms"]}
+    assert kinds["Steam"]["price_kind"] == "brl_real" and kinds["Epic Games Store"]["price_kind"] == "usd_converted"
+    assert kinds["GOG"]["price_kind"] == "mixed" and kinds["GOG"]["source"].startswith("GOG")  # Hades GOG estimado + Celeste GOG real
+    assert kinds["Epic Games Store"]["source"].startswith("CheapShark")
+    assert {x["name"] for x in client.get("/api/platforms").json()["providers"]} >= {"GOG", "Epic Games Store"}
+
+
+def test_search_ignores_accents_and_apostrophes(client, world):
+    conn = world["conn"]
+    conn.execute("INSERT INTO games (title, slug, tracked) VALUES ('Baldur''s Gate 3', 'baldurs-gate-3', true), ('Pokémon Quest', 'pokemon-quest', true)")
+    for gid in (4, 5):
+        conn.execute("INSERT INTO price_snapshots (game_id, store_id, snapshot_date, price_brl, price_original, currency_original, normal_price_brl, "
+                     "discount_pct, deal_url, price_origin) VALUES (%s, 1, %s, 50, 50, 'BRL', 50, 0, 'https://x.test', 'steam_brl')", (gid, world["today"]))
+    for q, title in (("baldurs gate", "Baldur's Gate 3"), ("baldur's gate", "Baldur's Gate 3"), ("pokemon", "Pokémon Quest"), ("POKÉMON", "Pokémon Quest")):
+        r = client.get("/api/search", params={"q": q, "live": "false"}).json()
+        assert [x["title"] for x in r["results"]] == [title], q
+    assert [s["title"] for s in client.get("/api/suggest", params={"q": "baldurs"}).json()["suggestions"]] == ["Baldur's Gate 3"]

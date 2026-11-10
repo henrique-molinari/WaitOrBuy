@@ -11,7 +11,7 @@ class Offer(BaseModel):
     price_brl: float
     normal_price_brl: float | None
     discount_pct: float
-    price_origin: Literal["steam_brl", "converted_usd"]
+    price_origin: Literal["steam_brl", "converted_usd", "nuuvem_brl", "instantgaming_brl", "epic_brl", "gog_brl"]
     is_estimated: bool
     deal_url: str | None
     captured_at: str
@@ -25,12 +25,58 @@ class SearchResult(BaseModel):
     best_offer: Offer | None
     offers: list[Offer]
     is_fixture: bool | None
+    genres: list[str] = []
+    discovered: bool = False
+
+
+class StoreFacet(BaseModel):
+    store_id: int
+    name: str
+    count: int
 
 
 class SearchResponse(BaseModel):
     query: str
     count: int
     results: list[SearchResult]
+    facets: list[StoreFacet] = []
+    discovered: int = 0          # jogos novos encontrados ao vivo nesta busca
+    live_error: str | None = None
+
+
+class Suggestion(BaseModel):
+    game_id: int
+    slug: str
+    title: str
+
+
+class SuggestResponse(BaseModel):
+    query: str
+    suggestions: list[Suggestion]
+
+
+class PlatformOut(BaseModel):
+    store_id: int
+    name: str
+    domain: str | None
+    price_kind: Literal["brl_real", "usd_converted", "mixed"]
+    source: str
+    games: int
+    last_captured_at: str | None
+
+
+class ProviderOut(BaseModel):
+    name: str
+    role: str
+    needs_key: bool
+    enabled: bool
+
+
+class PlatformsResponse(BaseModel):
+    count: int
+    platforms: list[PlatformOut]
+    providers: list[ProviderOut]
+    total_games: int
 
 
 class GameMeta(BaseModel):
