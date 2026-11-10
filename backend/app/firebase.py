@@ -43,13 +43,22 @@ def push_enabled() -> bool:
     return bool(settings.firebase_credentials)
 
 
-def send_push(token: str, title: str, body: str) -> bool:
-    """Envia FCM. Só chamado quando FIREBASE_CREDENTIALS está configurado."""
-    from firebase_admin import messaging
+def send_push(token: str, title: str, body: str, data: dict | None = None) -> str:
+    """Envia FCM. Só chamado quando FIREBASE_CREDENTIALS está configurado.
+    Devolve 'enviado', 'token_invalido' (o dispositivo não existe mais: quem chamou deve apagá-lo) ou 'erro' (falha passageira)."""
+    import logging
+
+    from firebase_admin import exceptions, messaging
 
     _init()
     try:
-        messaging.send(messaging.Message(token=token, notification=messaging.Notification(title=title, body=body)))
-        return True
-    except Exception:
-        return False
+        messaging.send(messaging.Message(token=token, notification=messaging.Notification(title=title, body=body),
+                                         data={k: str(v) for k, v in (data or {}).items()}))
+        return "enviado"
+    except (messaging.UnregisteredError, messaging.SenderIdMismatchError):
+        return "token_invalido"
+    except exceptions.InvalidArgumentError:
+        return "token_invalido"
+    except Exception as exc:
+        logging.getLogger("app.push").warning("push FCM falhou: %s", exc)
+        return "erro"

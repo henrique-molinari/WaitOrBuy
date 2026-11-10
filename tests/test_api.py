@@ -299,3 +299,50 @@ def test_search_ignores_accents_and_apostrophes(client, world):
         r = client.get("/api/search", params={"q": q, "live": "false"}).json()
         assert [x["title"] for x in r["results"]] == [title], q
     assert [s["title"] for s in client.get("/api/suggest", params={"q": "baldurs"}).json()["suggestions"]] == ["Baldur's Gate 3"]
+
+
+def test_push_all_sends_with_game_data_and_drops_invalid_devices(monkeypatch):
+    from app import firebase
+    from app.services import alerts
+
+    devices = {"ok": "tok-ok", "morto": "tok-morto", "falha": "tok-falha"}
+    calls = []
+
+    class Dev:
+        def __init__(self, key):
+            self.id = key
+            self.reference = type("R", (), {"delete": staticmethod(lambda: devices.pop(key))})()
+
+        def to_dict(self):
+            return {"token": devices[self.id]}
+
+    class Fs:
+        def collection(self, _):
+            return type("U", (), {"document": lambda s, uid: type("D", (), {"collection": lambda s2, n: type(
+                "C", (), {"stream": lambda s3: [Dev(k) for k in list(devices)]})()})()})()
+
+    def fake_send(token, title, body, data=None):
+        calls.append((token, data))
+        return {"tok-ok": "enviado", "tok-morto": "token_invalido", "tok-falha": "erro"}[token]
+
+    monkeypatch.setattr(firebase, "send_push", fake_send)
+    assert alerts.push_all(Fs(), "u1", 7, "Hades chegou ao seu preço", "corpo") is True
+    assert set(devices) == {"ok", "falha"}  # só o token inválido foi apagado; a falha passageira fica para a próxima
+    assert len(calls) == 3 and all(d["game_id"] == 7 for _, d in calls)
+    devices.clear()
+    assert alerts.push_all(Fs(), "u1", 7, "t", "b") is False
+
+
+def test_send_push_maps_fcm_errors(monkeypatch):
+    from firebase_admin import messaging
+
+    from app import firebase
+
+    monkeypatch.setattr(firebase, "_init", lambda: None)
+    for exc, expected in ((messaging.UnregisteredError("x", None), "token_invalido"), (RuntimeError("rede"), "erro")):
+        def boom(msg, _e=exc):
+            raise _e
+        monkeypatch.setattr(messaging, "send", boom)
+        assert firebase.send_push("t", "a", "b") == expected
+    monkeypatch.setattr(messaging, "send", lambda msg: "id-1")
+    assert firebase.send_push("t", "a", "b", {"game_id": 3}) == "enviado"
