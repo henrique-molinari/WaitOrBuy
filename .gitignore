@@ -6,6 +6,7 @@
 *.pem
 *.key
 firebase-credentials*.json
+firebase/credentials.json
 *-service-account*.json
 
 # Python

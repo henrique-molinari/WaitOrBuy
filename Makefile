@@ -37,10 +37,13 @@ test:
 
 verify: lint test
 
+test-emulator:
+	bash scripts/test_emulator.sh
+
 logs:
 	$(DC) logs -f --tail=100
 
-.PHONY: demo demo-offline e2e up down reset migrate etl seed-demo alerts-eval lint test verify logs
+.PHONY: test-emulator demo demo-offline e2e up down reset migrate etl seed-demo alerts-eval lint test verify logs
 
 e2e:
 	bash scripts/e2e.sh

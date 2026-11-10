@@ -85,7 +85,9 @@ def client():
 @pytest.fixture()
 def auth():
     """Cria um usuário novo no Auth Emulator e devolve (uid, headers)."""
-    host = os.environ["FIREBASE_AUTH_EMULATOR_HOST"]
+    host = os.getenv("FIREBASE_AUTH_EMULATOR_HOST")
+    if not host:
+        pytest.skip("sem Auth Emulator (backend em modo Firebase real); rode scripts/test_emulator.sh para a suíte completa")
     r = httpx.post(f"http://{host}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake",
                    json={"email": f"{uuid.uuid4().hex[:10]}@teste.dev", "password": "senha-123456", "returnSecureToken": True})
     r.raise_for_status()
@@ -94,3 +96,11 @@ def auth():
 
 
 ADMIN = {"X-Admin-Token": "token-de-teste"}
+
+
+@pytest.fixture(autouse=True)
+def no_live_discovery(monkeypatch):
+    """A busca da API consultaria as lojas de verdade; nos testes a descoberta ao vivo fica desligada (testada à parte)."""
+    from app.routers import search
+
+    monkeypatch.setattr(search, "live_discover", lambda conn, q: (0, None))
