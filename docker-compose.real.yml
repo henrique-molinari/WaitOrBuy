@@ -1,0 +1,5 @@
+# Modo Firebase REAL: monta a credencial da conta de serviço (firebase/credentials.json, fora do git) no backend.
+# Ative no .env com: COMPOSE_PATH_SEPARATOR=, e COMPOSE_FILE=docker-compose.yml,docker-compose.real.yml  (e FIREBASE_CREDENTIALS=/run/secrets/firebase.json)
+services:
+  backend:
+    volumes: ["./firebase/credentials.json:/run/secrets/firebase.json:ro"]
