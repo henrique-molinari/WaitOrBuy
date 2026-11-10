@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 from etl import config
-from etl.clients import rawg
+from etl.clients import rawg, steam
 from etl.db import connect, mongo_games
 from etl.http import HttpClient
 from etl.tracked import load_tracked
@@ -36,6 +36,41 @@ def rawg_doc(detail: rawg.RawgDetail, entry: dict) -> dict:
     }
 
 
+def steam_doc(meta: dict) -> dict:
+    return {
+        "background_image": meta.get("background_image"), "genres": meta.get("genres", []),
+        "platforms": meta.get("platforms") or ["PC"], "rating": None, "metacritic": meta.get("metacritic"),
+        "released": meta.get("released"), "playtime_hours": None, "playtime_source": None,
+        "description": meta.get("description"), "rawg_id": None, "is_fixture": False,
+    }
+
+
+def build_doc(game: dict, entry: dict, http, key: str) -> dict:
+    """RAWG (com chave) → Steam appdetails (jogos fora do YAML) → fixture editorial (YAML)."""
+    if key:
+        try:
+            detail = rawg.find_game(http, key, entry.get("search", game["title"]))
+            if detail:
+                return rawg_doc(detail, entry)
+        except Exception as exc:
+            log.error("RAWG falhou para %s: %s", game["title"], exc)
+    if not entry and game["steam_app_id"]:
+        try:
+            meta = steam.fetch_meta(http, game["steam_app_id"])
+            if meta:
+                return steam_doc(meta)
+        except Exception as exc:
+            log.error("Steam appdetails falhou para %s: %s", game["title"], exc)
+    return fixture_doc(game, entry)
+
+
+def save_doc(conn, coll, game: dict, doc: dict) -> None:
+    if doc["rawg_id"]:
+        conn.execute("UPDATE games SET rawg_id = %s WHERE game_id = %s", (doc["rawg_id"], game["game_id"]))
+    doc.update({"game_id": game["game_id"], "slug": game["slug"], "title": game["title"], "fetched_at": datetime.now(timezone.utc)})
+    coll.update_one({"game_id": game["game_id"]}, {"$set": doc}, upsert=True)
+
+
 def run(conn=None, http=None, coll=None, api_key: str | None = None) -> dict:
     own = conn is None
     conn = conn or connect()
@@ -48,21 +83,8 @@ def run(conn=None, http=None, coll=None, api_key: str | None = None) -> dict:
     try:
         rows = conn.execute("SELECT game_id, slug, title, steam_app_id FROM games WHERE tracked ORDER BY game_id").fetchall()
         for g in rows:
-            entry = entries.get(g["slug"], {})
-            doc = None
-            if key:
-                try:
-                    detail = rawg.find_game(http, key, entry.get("search", g["title"]))
-                    doc = rawg_doc(detail, entry) if detail else None
-                except Exception as exc:
-                    log.error("RAWG falhou para %s: %s", g["title"], exc)
-            if doc is None:
-                doc = fixture_doc(g, entry)
-            if doc["rawg_id"]:
-                conn.execute("UPDATE games SET rawg_id = %s WHERE game_id = %s", (doc["rawg_id"], g["game_id"]))
-            doc.update({"game_id": g["game_id"], "slug": g["slug"], "title": g["title"],
-                        "fetched_at": datetime.now(timezone.utc)})
-            coll.update_one({"game_id": g["game_id"]}, {"$set": doc}, upsert=True)
+            doc = build_doc(g, entries.get(g["slug"], {}), http, key)
+            save_doc(conn, coll, g, doc)
             stats["games"] += 1
             stats["fixture" if doc["is_fixture"] else "rawg"] += 1
         conn.commit()
