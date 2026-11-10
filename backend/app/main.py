@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app import db, errors, firebase
 from app.auth import require_admin
 from app.config import settings
-from app.routers import me, public
+from app.routers import me, public, search
 from app.services import alerts
 
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +40,7 @@ async def rate_limit(request: Request, call_next):
     return await call_next(request)
 
 app.include_router(public.router)
+app.include_router(search.router)
 app.include_router(me.router)
 
 

@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime, timezone
 
+from google.api_core.exceptions import FailedPrecondition
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from app import firebase
@@ -30,12 +31,24 @@ def best_price(conn, game_id: int, store_id: int | None) -> dict | None:
         (game_id, store_id)).fetchone()
 
 
+def _active_alerts(fs):
+    """Alertas ativos de todos os usuários. Usa o índice de collection group (firebase/firestore.indexes.json); se ele ainda
+    não foi publicado no projeto, lê todos e filtra aqui, para a avaliação nunca parar por falta de índice."""
+    group = fs.collection_group("alerts")
+    try:
+        yield from list(group.where(filter=FieldFilter("active", "==", True)).stream())
+    except FailedPrecondition:
+        log.warning("índice de collection group 'alerts.active' ausente no Firestore; filtrando em memória (publique firebase/firestore.indexes.json)")
+        for doc in group.stream():
+            if (doc.to_dict() or {}).get("active"):
+                yield doc
+
+
 def evaluate(conn, fs=None, only_uid: str | None = None) -> dict:
     fs = fs or firebase.firestore_client()
     stats = {"alerts_checked": 0, "triggered": 0, "rearmed": 0, "notifications_created": 0, "push": "nao_configurado"}
     titles = {r["game_id"]: r["title"] for r in conn.execute("SELECT game_id, title FROM games")}
-    docs = fs.collection_group("alerts").where(filter=FieldFilter("active", "==", True)).stream()
-    for doc in docs:
+    for doc in _active_alerts(fs):
         if only_uid and doc.reference.parent.parent.id != only_uid:
             continue
         a = doc.to_dict()
