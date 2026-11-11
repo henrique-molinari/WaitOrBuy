@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 
-type Sug = { game_id: number; title: string };
+type Sug = { game_id: number | null; title: string; live?: boolean };  // live = ainda fora do banco: buscar pelo título cadastra
 
 // Campo de busca com autocomplete (banco local, rápido). Enter busca em todas as lojas.
 export function SearchBar({ initial = "", onSubmit, autoFocus }: { initial?: string; onSubmit: (q: string) => void; autoFocus?: boolean }) {
@@ -19,7 +19,7 @@ export function SearchBar({ initial = "", onSubmit, autoFocus }: { initial?: str
     if (e.key === "ArrowDown") { e.preventDefault(); setAct((a) => Math.min(sug.length - 1, a + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setAct((a) => Math.max(-1, a - 1)); }
     else if (e.key === "Escape") setOpen(false);
-    else if (e.key === "Enter" && act >= 0 && sug[act]) { e.preventDefault(); go(sug[act].title); }
+    else if (e.key === "Enter" && act >= 0 && sug[act]) { e.preventDefault(); const s = sug[act]; if (s.game_id) { setOpen(false); location.hash = `#/jogo/${s.game_id}`; } else go(s.title); }
   };
   return (
     <form className="search rise" style={{ animationDelay: "520ms" }} role="search" onSubmit={(e) => { e.preventDefault(); go(q); }}>
@@ -30,9 +30,9 @@ export function SearchBar({ initial = "", onSubmit, autoFocus }: { initial?: str
             onChange={(e) => { setQ(e.target.value); setOpen(true); setAct(-1); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={key} />
         </div>
         {open && sug.length > 0 && <ul id="q-list" className="sug" role="listbox">{sug.map((s, i) => (
-          <li key={s.game_id} id={`q-${i}`} role="option" aria-selected={i === act}><a href={`#/jogo/${s.game_id}`} onMouseDown={(e) => e.preventDefault()}>{s.title}</a></li>))}</ul>}
+          <li key={s.game_id ?? s.title} id={`q-${i}`} role="option" aria-selected={i === act}><a href={s.game_id ? `#/jogo/${s.game_id}` : `#/busca?q=${encodeURIComponent(s.title)}`} onMouseDown={(e) => e.preventDefault()}>{s.title}{s.live && <span className="wob-cap sug-new"> · buscar nas lojas</span>}</a></li>))}</ul>}
       </div>
-      <button className="wob-btn wob-btn--primary" style={{ alignSelf: "flex-end", height: 64 }}>Buscar</button>
+      <button className="wob-btn wob-btn--primary search-btn">Buscar</button>
     </form>
   );
 }
