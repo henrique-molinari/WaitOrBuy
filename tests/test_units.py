@@ -281,3 +281,17 @@ def test_http_client_does_not_retry_404_json_and_posts_json():
         c.get_json("https://x.test/a")
     assert calls == ["GET"]  # sem retry em 4xx
     assert "oi" in c.post_json("https://x.test/b", {"a": "oi"})["echo"]
+
+
+def test_nuuvem_sitemap_keeps_only_brazilian_items_and_picks_same_game():
+    from etl.clients import nuuvem
+    xml = ("<urlset><url><loc>https://www.nuuvem.com/us-en/item/code-vein</loc></url>"
+           "<url><loc>https://www.nuuvem.com/br-pt/item/code-vein</loc></url>"
+           "<url><loc>https://www.nuuvem.com/br-pt/item/code-vein-deluxe-edition</loc></url>"
+           "<url><loc>https://www.nuuvem.com/br-pt/item/code-vein-ii</loc></url>"
+           "<url><loc>https://www.nuuvem.com/br-pt/item/code-vein</loc></url></urlset>")
+    slugs = nuuvem.parse_sitemap(xml)
+    assert slugs == ["code-vein", "code-vein-deluxe-edition", "code-vein-ii"]  # sem duplicata e sem outros países
+    rows = [{"slug": s, "norm_title": s.replace("-", " ")} for s in slugs]
+    assert nuuvem.pick_slugs(rows, "Code Vein") == ["code-vein", "code-vein-deluxe-edition"]  # a sequência "II" não entra
+    assert nuuvem.pick_slugs(rows, "Outro Jogo") == []

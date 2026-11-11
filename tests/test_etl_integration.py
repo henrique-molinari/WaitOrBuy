@@ -159,7 +159,8 @@ def test_discovery_creates_game_prices_it_and_discards_games_without_offers(conn
     assert len(new) == 1
     g = conn.execute("SELECT * FROM games WHERE game_id = %s", (new[0],)).fetchone()
     assert g["discovered"] and g["tracked"] and g["title"] == "Zorblax Quest"
-    assert count(conn, f"SELECT count(*) n FROM price_snapshots WHERE game_id = {new[0]}") == 2  # Steam + Epic
+    assert count(conn, f"SELECT count(*) n FROM price_snapshots WHERE game_id = {new[0]} AND NOT is_simulated") == 2  # Steam + Epic
+    assert count(conn, f"SELECT count(DISTINCT snapshot_date) n FROM price_snapshots WHERE game_id = {new[0]} AND is_simulated") > 100  # histórico inicial simulado (sinalizado)
     assert coll.find_one({"game_id": new[0]})["title"] == "Zorblax Quest"
     assert discovery.discover(conn, http, "Zorblax Quest", coll=coll) == []  # já conhecido: nada novo
 
@@ -302,3 +303,33 @@ def test_discovered_games_are_refreshed_at_most_every_12_hours(conn, http):
     conn.execute("UPDATE price_snapshots SET captured_at = now() - interval '13 hours' WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')")
     prices.run(conn=conn, http=http)
     assert conn.execute("SELECT max(captured_at) m FROM price_snapshots WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')").fetchone()["m"] > after
+
+
+def test_popular_ids_interleave_dedup_and_isolate_failures(monkeypatch):
+    from etl.clients import steam_popular as sp
+
+    monkeypatch.setattr(sp, "_charts", lambda h: [1, 2, 3])
+    monkeypatch.setattr(sp, "_featured", lambda h: (_ for _ in ()).throw(RuntimeError("fora do ar")))
+    monkeypatch.setattr(sp, "_steamspy", lambda h: [2, 9, 1, 8])
+    assert sp.popular_app_ids(None) == [1, 2, 9, 3, 8]  # intercala as fontes, sem repetir; a que falhou não derruba as outras
+
+
+def test_popular_job_registers_new_skips_known_and_remembers_rejects(conn, monkeypatch):
+    from etl.jobs import popular
+
+    conn.execute("INSERT INTO games (title, slug, tracked, steam_app_id) VALUES ('Hades','hades',true,1)")
+    monkeypatch.setattr(popular, "popular_app_ids", lambda h: [1, 2, 3, 4])  # 1 já existe
+    metas = {2: {"name": "Jogo Novo", "type": "game"}, 3: {"name": "Trilha", "type": "music"}, 4: {"name": "Sem Preço", "type": "game"}}
+    monkeypatch.setattr(popular.steam, "fetch_meta", lambda h, app_id: metas[app_id])
+
+    def fake_register(c, h, cands, max_new=8, coll=None):  # só o 2 rende oferta
+        assert [x.steam_id for x in cands] == [2, 4]
+        gid = c.execute("INSERT INTO games (title, slug, tracked, steam_app_id) VALUES ('Jogo Novo','jogo-novo',true,2) RETURNING game_id").fetchone()["game_id"]
+        return [gid]
+
+    monkeypatch.setattr(popular.discovery, "register", fake_register)
+    assert popular.run(limit=10, conn=conn, http=object()) == {"listed": 4, "tried": 3, "created": 1}
+    skipped = {r["steam_app_id"]: r["reason"] for r in conn.execute("SELECT * FROM popular_skip")}
+    assert skipped == {3: "nao_e_jogo", 4: "sem_oferta"}
+    monkeypatch.setattr(popular.steam, "fetch_meta", lambda h, i: pytest.fail("não deve reconsultar descartados nem cadastrados"))
+    assert popular.run(limit=10, conn=conn, http=object())["tried"] == 0
