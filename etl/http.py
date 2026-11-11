@@ -23,19 +23,20 @@ MAX_WAIT = 60
 
 class HttpClient:
     def __init__(self, pause: float | None = None, retries: int = 4, transport: httpx.BaseTransport | None = None,
-                 backoff_base: float = 3.0):
+                 backoff_base: float = 3.0, timeout: float = 20.0):
+        self.timeout = timeout
         self.pause = config.PAUSE_SECONDS if pause is None else pause
         self.retries = retries
         self.backoff_base = backoff_base
         self._transport = transport
         self._client = httpx.Client(
-            timeout=httpx.Timeout(20.0), headers={"User-Agent": config.USER_AGENT},
+            timeout=httpx.Timeout(timeout), headers={"User-Agent": config.USER_AGENT},
             transport=transport, follow_redirects=True,
         )
 
     def clone(self) -> "HttpClient":
         """Cliente independente com a mesma configuração (um por thread; o httpx.Client compartilhado não é a melhor ideia)."""
-        return HttpClient(pause=self.pause, retries=self.retries, transport=self._transport, backoff_base=self.backoff_base)
+        return HttpClient(pause=self.pause, retries=self.retries, transport=self._transport, backoff_base=self.backoff_base, timeout=self.timeout)
 
     def get_json(self, url: str, params: dict | None = None):
         return self._get(url, params, as_json=True)

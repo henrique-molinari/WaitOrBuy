@@ -54,7 +54,7 @@ def simulate_price(game_id: int, store_id: int, d: date, normal: Decimal, window
     return max(price, normal * Decimal("0.1")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def run(conn=None, today: date | None = None) -> dict:
+def run(conn=None, today: date | None = None, game_ids: list[int] | None = None) -> dict:
     own = conn is None
     conn = conn or connect()
     today = today or config.today_br()
@@ -63,8 +63,8 @@ def run(conn=None, today: date | None = None) -> dict:
             "SELECT id, start_month, start_day, end_month, end_day FROM seasonal_sales WHERE rule IS NULL"
         ).fetchall()
         current = conn.execute(
-            "SELECT l.* FROM v_latest_price l JOIN games g USING (game_id) WHERE g.tracked ORDER BY game_id, store_id"
-        ).fetchall()
+            "SELECT l.* FROM v_latest_price l JOIN games g USING (game_id) WHERE g.tracked AND (%s::int[] IS NULL OR g.game_id = ANY(%s)) ORDER BY game_id, store_id",
+            (game_ids, game_ids)).fetchall()
         rows = 0
         games = set()
         for c in current:

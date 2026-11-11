@@ -41,7 +41,8 @@ def fetch_price_brl(http: HttpClient, app_id: int) -> SteamPrice | None:
 
 SEARCH_URL = "https://store.steampowered.com/api/storesearch/"
 _NOT_A_GAME = ("soundtrack", " ost", "dlc", "season pass", "expansion pass", "artbook", "art book", "wallpaper", "demo", "playtest", "sdk",
-               "dedicated server", "character pack", "skin pack", "costume")
+               "dedicated server", "character pack", "skin pack", "costume", " vip", " pack", "membership", "upgrade", "bundle", "add-on", " booster",
+               "supporter")
 
 
 def search(http: HttpClient, term: str) -> list[dict]:

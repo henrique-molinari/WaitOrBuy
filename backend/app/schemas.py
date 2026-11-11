@@ -42,12 +42,15 @@ class SearchResponse(BaseModel):
     facets: list[StoreFacet] = []
     discovered: int = 0          # jogos novos encontrados ao vivo nesta busca
     live_error: str | None = None
+    fuzzy: bool = False              # true = nenhum título continha o termo; resultados são "parecidos" (erro de digitação)
+    did_you_mean: str | None = None  # título mais parecido, quando fuzzy
 
 
 class Suggestion(BaseModel):
-    game_id: int
-    slug: str
+    game_id: int | None = None   # None = jogo ainda fora do banco (sugestão ao vivo da Steam); buscar pelo título o cadastra
+    slug: str | None = None
     title: str
+    live: bool = False
 
 
 class SuggestResponse(BaseModel):
@@ -156,6 +159,15 @@ class Deal(BaseModel):
 class DealsResponse(BaseModel):
     count: int
     deals: list[Deal]
+
+
+class Recommended(Deal):
+    reason: str   # "genero" (mesmo gênero dos jogos buscados) | "promocao" (em promoção agora)
+
+
+class RecommendedResponse(BaseModel):
+    count: int
+    items: list[Recommended]
 
 
 class FxOut(BaseModel):
