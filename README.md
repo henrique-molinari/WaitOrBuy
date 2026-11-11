@@ -43,11 +43,11 @@ URLs: frontend `:5173`, API/Swagger `:8001/docs`, Postgres `:5433` (só loopback
 Steam, Nuuvem, Instant Gaming (preço real em R$) + GOG, Epic Games Store, Humble Store, Fanatical, GreenManGaming, Gamesplanet, GamersGate, GameBillet, IndieGala, WinGameStore (e Ubisoft/DreamGame quando têm oferta) via CheapShark. Dados auxiliares: Banco Central (PTAX), Steam appdetails e RAWG (opcional). A lista viva está em `GET /api/platforms` e na tela **Lojas**. Detalhes e fontes descartadas: `docs/API_NOTES.md`.
 
 ## Passos manuais
-1. **KNIME**: montar os 3 workflows na GUI seguindo [knime/BUILD_GUIDE.md](knime/BUILD_GUIDE.md) (~1 h). Os jobs Python equivalentes já fazem tudo.
+1. **Integração visual:** o pipeline **Apache Hop** da cotação PTAX já está pronto e testado (`bash scripts/hop_fx.sh`, ver [hop/README.md](hop/README.md)). O **KNIME** também faz parte do projeto: o workflow `wf4_wishlist_email` envia **um e-mail por pessoa** com os jogos da wishlist que estão em bom preço (veredito "comprar agora"), com link para a página do jogo na plataforma. Roda sob demanda, não no Docker. Uso: [knime/COMO_E_USADO.md](knime/COMO_E_USADO.md) · montagem: [knime/COMO_FOI_FEITO.md](knime/COMO_FOI_FEITO.md) · por que conta como integração de dados: [knime/POR_QUE_INTEGRACAO.md](knime/POR_QUE_INTEGRACAO.md). Os workflows 1 a 3 do [knime/BUILD_GUIDE.md](knime/BUILD_GUIDE.md) seguem só como roteiro (os jobs Python fazem o mesmo).
 2. Chave gratuita da RAWG no `.env` para trocar fixtures por dados reais.
 3. Credenciais Firebase reais só se quiserem push FCM (não verificado).
 4. Revisão jurídica: [docs/REVISAR_JURIDICO.md](docs/REVISAR_JURIDICO.md).
 
 ## Estrutura
-`etl/` jobs e clientes · `backend/app/` API · `db/migrations/` SQL versionado · `firebase/` emuladores e regras · `frontend/` protótipo · `knime/` guia · `scripts/` demo/e2e · `tests/` pytest · `docs/` contrato, arquitetura, dicionário, roteiro.
+`etl/` jobs e clientes · `backend/app/` API · `db/migrations/` SQL versionado · `firebase/` emuladores e regras · `frontend/` React · `hop/` pipeline Apache Hop · `knime/` workflow de e-mail da wishlist e guias · `scripts/` demo/e2e · `tests/` pytest · `docs/` contrato, arquitetura, dicionário, roteiro.
 Documentos: [API](docs/API.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_DICTIONARY](docs/DATA_DICTIONARY.md) · [APRESENTACAO](docs/APRESENTACAO.md) · [DEMO_SCRIPT](docs/DEMO_SCRIPT.md) · [CHECKLIST_REQUISITOS](docs/CHECKLIST_REQUISITOS.md) · [API_NOTES](docs/API_NOTES.md).
