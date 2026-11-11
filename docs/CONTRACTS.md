@@ -151,6 +151,7 @@ Lojas completas primeiro (menor total), depois incompletas (menor total). `best_
 - **Pedidos do front (push web), o front já está pronto:** (1) `send_push` deve mandar também `data={"game_id":"<id>"}` (o service worker `frontend/public/push-sw.js` abre `/#/jogo/<id>` ao clicar; sem `data` abre `/#/avisos`); (2) `DELETE /api/me/devices/{token}` para o usuário desligar no app (hoje só dá para desligar nas permissões do navegador); (3) remover o token do dispositivo quando o FCM devolver `UNREGISTERED`. Front precisa das variáveis `VITE_FIREBASE_*` e `VITE_FCM_VAPID_KEY` (ver `frontend/.env.example`).
 
 ### Interno
+- `GET /api/admin/wishlist-deals[?uid=&cooldown_days=30]` (admin) → `{"count","skipped_without_email","users":[{"uid","email","items":[{"game_id","title","store_id","store_name","price_brl","is_estimated","deal_url","confidence","reason","based_on_simulated"}],"subject","body_text","body_html","confirm_body"}]}` (`confirm_body` = texto JSON pronto para o corpo do POST `/sent`); `POST /api/admin/wishlist-deals/sent` corpo `{"uid","items":[{"game_id","price_brl"}]}` → `{"uid","registered"}`. Detalhes em [API.md](API.md).
 - `POST /api/admin/alerts/evaluate[?uid=<uid>]` (uid opcional restringe a um usuário; usado nos testes) header `X-Admin-Token` (403 `forbidden` se errado) → `{"alerts_checked":3,"triggered":1,"rearmed":0,"notifications_created":1,"push":"nao_configurado"}`; `push ∈ {"nao_configurado","enviado"}`.
 - CLI equivalente: `python -m app.cli evaluate-alerts`.
 

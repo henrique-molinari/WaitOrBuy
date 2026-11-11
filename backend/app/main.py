@@ -10,7 +10,8 @@ from app import db, errors, firebase
 from app.auth import require_admin
 from app.config import settings
 from app.routers import me, public, search
-from app.services import alerts
+from app.schemas import WishlistEmailSent
+from app.services import alerts, wishlist_digest
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,6 +66,20 @@ def health():
         pass
     ok = all(status.values())
     return JSONResponse({"status": "ok" if ok else "degraded", **status}, status_code=200 if ok else 503)
+
+
+@app.get("/api/admin/wishlist-deals", tags=["interno"], dependencies=[Depends(require_admin)])
+def wishlist_deals(uid: str | None = None, cooldown_days: int = wishlist_digest.COOLDOWN_DAYS):
+    """Um e-mail pronto por usuário com os jogos da wishlist em bom preço (veredito COMPRAR_AGORA) ainda não avisados. Só lê."""
+    with db.pool().connection() as conn:
+        return wishlist_digest.collect(conn, only_uid=uid, cooldown_days=cooldown_days)
+
+
+@app.post("/api/admin/wishlist-deals/sent", tags=["interno"], dependencies=[Depends(require_admin)])
+def wishlist_deals_sent(body: WishlistEmailSent):
+    """Chamado pelo KNIME depois de enviar o e-mail: registra os jogos avisados para não repetir."""
+    n = wishlist_digest.confirm(firebase.firestore_client(), body.uid, [i.model_dump() for i in body.items])
+    return {"uid": body.uid, "registered": n}
 
 
 @app.post("/api/admin/alerts/evaluate", tags=["interno"], dependencies=[Depends(require_admin)])
