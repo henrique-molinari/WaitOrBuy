@@ -39,6 +39,12 @@ def verify_token(token: str) -> dict:
     return auth.verify_id_token(token)
 
 
+def user_email(uid: str) -> str | None:
+    """E-mail da conta no Firebase Auth (None se a conta não tiver)."""
+    _init()
+    return auth.get_user(uid).email
+
+
 def push_enabled() -> bool:
     return bool(settings.firebase_credentials)
 

@@ -29,6 +29,8 @@ class Settings:
     admin_token = os.getenv("ADMIN_TOKEN", "")
     affiliate_tag = os.getenv("AFFILIATE_TAG", "").strip()
     frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    # Endereço público do site, usado nos links dos e-mails. Sem PUBLIC_URL, usa o primeiro de FRONTEND_ORIGIN.
+    public_url = (os.getenv("PUBLIC_URL", "").strip() or os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").split(",")[0].strip()).rstrip("/")
     project_id = os.getenv("FIREBASE_PROJECT_ID", "demo-waitorbuy")
     firebase_credentials = os.getenv("FIREBASE_CREDENTIALS", "").strip()
 

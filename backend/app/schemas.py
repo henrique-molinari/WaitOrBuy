@@ -233,6 +233,16 @@ class NotificationsOut(BaseModel):
     items: list[NotificationOut]
 
 
+class SentItem(BaseModel):
+    game_id: int = Field(gt=0)
+    price_brl: float = Field(gt=0, lt=100000)
+
+
+class WishlistEmailSent(BaseModel):
+    uid: str = Field(min_length=1, max_length=128)
+    items: list[SentItem] = Field(min_length=1, max_length=200)
+
+
 class DeviceIn(BaseModel):
     token: str = Field(min_length=10, max_length=4096)
     platform: str | None = Field(default=None, max_length=32)

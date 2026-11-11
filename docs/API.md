@@ -272,6 +272,27 @@ Avalia todos os alertas ativos agora (ou só os de `uid`). Exige `X-Admin-Token`
 
 `push` é `enviado` quando há credenciais FCM e ao menos um push saiu, senão `nao_configurado`. Se o índice `alerts.active` do Firestore (`firebase/firestore.indexes.json`) ainda não foi publicado no projeto, a avaliação filtra em memória e continua funcionando.
 
+### `GET /api/admin/wishlist-deals[?uid=<uid>&cooldown_days=30]`
+
+Usado pelo workflow KNIME de e-mail. Exige `X-Admin-Token`. Só lê. Devolve **um e-mail pronto por usuário** com os jogos da wishlist em bom preço (veredito `COMPRAR_AGORA`, a mesma regra da tela do jogo) que ainda não foram avisados. Usuários sem jogo em bom preço, ou sem e-mail no Firebase Auth, não aparecem (`skipped_without_email` conta os segundos).
+
+```json
+{"count": 1, "skipped_without_email": 0, "users": [{
+  "uid": "abc", "email": "pessoa@exemplo.com",
+  "items": [{"game_id": 1, "title": "Hades", "store_id": 25, "store_name": "Epic Games Store", "price_brl": 68.93,
+             "is_estimated": true, "deal_url": "https://...", "confidence": "alta", "reason": "...", "based_on_simulated": false}],
+  "subject": "WaitOrBuy: Hades está em bom preço", "body_text": "...", "body_html": "...",
+  "confirm_body": "{\"uid\": \"abc\", \"items\": [{\"game_id\": 1, \"price_brl\": 68.93}]}"}]}
+```
+
+`confirm_body` é o texto pronto para ser enviado como corpo do `POST /api/admin/wishlist-deals/sent` (o KNIME o repassa sem montar nada).
+
+Preço estimado (`is_estimated`) e histórico simulado (`based_on_simulated`) aparecem sinalizados no texto do e-mail. O link do e-mail aponta para a página do jogo na plataforma (`game_url` = `PUBLIC_URL` + `/#/jogo/<id>`; sem `PUBLIC_URL`, usa o primeiro de `FRONTEND_ORIGIN`), não para a loja; `deal_url` continua no JSON, mas não vai no e-mail.
+
+### `POST /api/admin/wishlist-deals/sent`
+
+Corpo `{"uid": "abc", "items": [{"game_id": 1, "price_brl": 68.93}]}`. O KNIME chama **depois** de enviar o e-mail; registra o aviso em `users/{uid}/wishlist_emails`. Resposta `{"uid": "abc", "registered": 1}`. Um jogo avisado só volta a entrar se o preço cair abaixo do enviado ou após `cooldown_days` (30).
+
 ## 8. Exemplos
 
 ```bash
