@@ -86,6 +86,8 @@ Busca jogos de PC e compara o preço entre as lojas, do mais barato ao mais caro
   "count": 3,
   "discovered": 3,
   "live_error": null,
+  "fuzzy": false,
+  "did_you_mean": null,
   "results": [
     {
       "game_id": 161, "slug": "mortal-kombat-1", "title": "Mortal Kombat 1",
@@ -102,9 +104,19 @@ Busca jogos de PC e compara o preço entre as lojas, do mais barato ao mais caro
 
 `facets` lista as lojas com ofertas nos jogos achados (para montar filtros), contando antes dos filtros `store`, `max_price` e `min_discount`. `discovered` é quantos jogos novos esta busca cadastrou.
 
+**Busca tolerante a erro de digitação.** Se nenhum título contém o termo (ex.: `wicther 3`, `cyberpnk`), a API devolve os títulos mais parecidos (similaridade de trigramas, sem acento nem pontuação) com `fuzzy: true` e `did_you_mean` com o melhor palpite (`The Witcher 3: Wild Hunt`). Termos com menos de 3 letras/números não passam por isso.
+
+### `GET /api/recommended`
+
+Recomendados para mostrar abaixo da lista de busca. `exclude` (repetível) = ids já listados; `limit` 1–24 (padrão 8). Prioriza o mesmo gênero dos jogos excluídos e completa com as maiores promoções. `reason` é `genero` ou `promocao`.
+
+```json
+{"count": 1, "items": [{"game_id": 2, "slug": "celeste", "title": "Celeste", "thumb": null, "offer": {"price_brl": 36.99, "store_name": "Steam"}, "reason": "genero"}]}
+```
+
 ### `GET /api/suggest?q=<texto>`
 
-Autocompletar rápido, **só no banco local** (não consulta lojas). `q` é obrigatório (1–100 caracteres). Até 8 sugestões, sem acento.
+Autocompletar rápido, **só no banco local** (não consulta lojas). `q` é obrigatório (1–100 caracteres). Até 8 sugestões, sem acento. Se nada contém o texto, devolve títulos parecidos (tolera erro de digitação). Com menos de 5 acertos locais e 3+ letras, completa com jogos da Steam ao vivo (`live: true`, `game_id` e `slug` nulos; cache de 1 h por texto, timeout de 3 s, falha silenciosa; `?live=false` desliga). Escolher um deles abre a busca pelo título, que o cadastra e precifica.
 
 ```json
 {"query": "hol", "suggestions": [{"game_id": 79, "slug": "hollow", "title": "Hollow"}]}

@@ -27,7 +27,7 @@
 
 ## Nuuvem (https://www.nuuvem.com/br-pt/item/<slug>) — sem API pública, sem chave
 - A Nuuvem só oferece Store API mediante aprovação da equipe; por isso lemos o **microdata schema.org** da página do produto (`priceCurrency=BRL`, `price`), permitida pelo robots.txt. A busca interna (`/search/`) é proibida e **não é usada**.
-- O slug costuma ser o título em minúsculas com hífens: o ETL tenta `slugify(título)` (e sem "the-"); 404 = a loja não vende o jogo (nova tentativa após 7 dias). `nuuvem:` no `tracked_games.yml` sobrescreve.
+- O slug vem do **sitemap oficial** (`/sitemap.xml`, declarado no robots.txt; ~50 MB, só as URLs `/br-pt/item/`), indexado 1x por dia em `nuuvem_catalog` (`etl/jobs/nuuvem_index.py`). O jogo casa por título (igual ou edição, nunca sequência/DLC); se o índice não achar, o ETL ainda tenta `slugify(título)` (e sem "the-"). Sem página ou sem oferta = a loja não vende o jogo (nova tentativa após 7 dias). `nuuvem:` no `tracked_games.yml` sobrescreve. Recoleta em massa: `python -m etl.jobs.backfill_stores`.
 - Verificado em 2026-11-10: `elden-ring` → R$ 247,05; `dark-souls-iii` → R$ 229,90. Algumas páginas (ex.: `cyberpunk-2077`) não trazem o microdata de preço → sem oferta (não inventamos preço).
 
 ## Instant Gaming (https://www.instant-gaming.com/pt/) — sem API pública, sem chave
@@ -54,6 +54,11 @@
 ## GOG — sem chave, NÃO OFICIAL
 - Busca: `GET https://catalog.gog.com/v1/catalog?query=<título>&productType=in:game,pack&countryCode=BR&currencyCode=BRL&locale=en-US` (o prefixo `like:` não funciona com `query`). Preço: `GET https://api.gog.com/products/<id>/prices?countryCode=BR&currency=BRL` → `"finalPrice":"1435 BRL"` em **centavos**. Verificado em 2026-11-10 (The Witcher 3 Remastered = 159,99).
 - Mesma regra de casamento de título da Epic. Fontes de terceiros citam 200 req/h por IP em `api.gog.com/products/*` (não verificado); o ETL consulta o preço de 1 jogo por chamada, com pausa.
+
+## Steam — jogos populares (catálogo inicial), sem chave
+- `GET https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/` (oficial, top 100 por jogadores simultâneos), `GET https://store.steampowered.com/api/featuredcategories?cc=br` (mais vendidos, promoções, lançamentos) e SteamSpy `GET https://steamspy.com/api.php?request=top100in2weeks|top100forever` (terceiros). Só ids; nome, tipo e preço vêm do `appdetails` (BRL real). Verificado em 2026-11-10.
+- `etl.jobs.popular` tenta 20 jogos por ciclo (pausa de 0,5 s). Descartes (grátis, DLC, sem preço) ficam em `popular_skip` por 30 dias.
+- Autocompletar ao vivo: `GET store.steampowered.com/api/storesearch/?term=…&cc=br` devolve no máximo 10 itens (`count` é ignorado), muitos deles DLC; o cliente filtra.
 
 ## Fontes avaliadas e NÃO integradas (2026-11-10)
 - **Humble Bundle**: sem API pública; `store/api/search` bloqueado por Cloudflare. **Fanatical**: sem API/feed público; só HTML. Ambos seguem via CheapShark (USD convertido, rotulado como estimativa).
