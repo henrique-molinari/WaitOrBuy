@@ -249,7 +249,8 @@ def _collect_instant_gaming(conn, http, g, today, stats, active) -> None:
 def _resolve_ids(conn, http, cs, g, today) -> None:
     """Jogo achado só numa loja (ex.: GOG ou Epic) ainda não tem id na CheapShark nem na Steam: procura pelo título (a cada STALE_DAYS)."""
     if not g["cheapshark_game_id"] and _stale(g.get("cs_checked_at"), today):
-        hit = matching.best_match(g["title"], cs.search(g["title"]), key=lambda h: h.external)
+        hit = cs.by_steam_app_id(g["steam_app_id"]) if g["steam_app_id"] else None  # o app da Steam é exato; o título é só plano B
+        hit = hit or matching.best_match(g["title"], cs.search(g["title"]), key=lambda h: h.external)
         if hit:
             sid = int(hit.steamAppID) if hit.steamAppID and hit.steamAppID.isdigit() else None
             g["cheapshark_game_id"], g["steam_app_id"] = hit.gameID, g["steam_app_id"] or sid
