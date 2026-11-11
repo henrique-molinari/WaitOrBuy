@@ -21,6 +21,12 @@ def mongo_docs(world):
     ])
 
 
+@pytest.fixture(autouse=True)
+def no_live_suggest(monkeypatch):
+    """Os testes nunca chamam a Steam de verdade no autocompletar."""
+    monkeypatch.setattr("app.routers.search.live_suggestions", lambda *a, **k: [])
+
+
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.json() == {"status": "ok", "postgres": True, "mongo": True, "firestore": True}
@@ -346,3 +352,84 @@ def test_send_push_maps_fcm_errors(monkeypatch):
         assert firebase.send_push("t", "a", "b") == expected
     monkeypatch.setattr(messaging, "send", lambda msg: "id-1")
     assert firebase.send_push("t", "a", "b", {"game_id": 3}) == "enviado"
+
+
+def test_search_fuzzy_typo(client):
+    """Erro de digitação ainda acha o jogo e avisa que é aproximado."""
+    r = client.get("/api/search", params={"q": "hadez", "live": "false"}).json()
+    assert r["fuzzy"] is True and r["did_you_mean"] == "Hades" and [g["title"] for g in r["results"]] == ["Hades"]
+    r = client.get("/api/search", params={"q": "celest", "live": "false"}).json()  # contido no título: busca exata, sem fuzzy
+    assert r["fuzzy"] is False and r["count"] == 1
+    r = client.get("/api/search", params={"q": "clesate", "live": "false"}).json()
+    assert r["fuzzy"] is True and r["did_you_mean"] == "Celeste"
+
+
+def test_search_fuzzy_no_noise(client):
+    for q in ("zzzzqqq", "??", "ab"):
+        r = client.get("/api/search", params={"q": q, "live": "false"}).json()
+        assert r["count"] == 0 and r["fuzzy"] is False and r["did_you_mean"] is None
+
+
+def test_suggest_fuzzy(client):
+    assert [s["title"] for s in client.get("/api/suggest", params={"q": "hadez"}).json()["suggestions"]] == ["Hades"]
+    assert client.get("/api/suggest", params={"q": "zzzzqqq"}).json()["suggestions"] == []
+
+
+def test_recommended_excludes_and_has_offer(client):
+    r = client.get("/api/recommended", params={"exclude": 1}).json()
+    assert r["count"] == len(r["items"]) and all(i["game_id"] != 1 for i in r["items"])
+    assert all(i["offer"]["price_brl"] > 0 and i["reason"] in ("genero", "promocao") for i in r["items"])
+    assert client.get("/api/recommended", params={"limit": 0}).status_code == 422
+
+
+def test_suggest_completes_with_live_games(client, monkeypatch):
+    calls = []
+
+    def fake(term, known, n):
+        calls.append((term, known, n))
+        return [{"game_id": None, "slug": None, "title": "Hadestown Quest", "live": True}]
+
+    monkeypatch.setattr("app.routers.search.live_suggestions", fake)
+    s = client.get("/api/suggest", params={"q": "had"}).json()["suggestions"]
+    assert [(x["title"], x["live"]) for x in s] == [("Hades", False), ("Hadestown Quest", True)] and s[1]["game_id"] is None
+    assert calls and calls[0][1] == ["Hades"]
+    calls.clear()
+    assert [x["live"] for x in client.get("/api/suggest", params={"q": "had", "live": "false"}).json()["suggestions"]] == [False] and not calls
+    assert not calls and client.get("/api/suggest", params={"q": "ha"}).status_code == 200  # 2 letras: não consulta a Steam
+    assert not [c for c in calls if c[0] == "ha"]
+
+
+def test_live_suggestions_dedup_cache_and_failure(monkeypatch):
+    from app.routers import search
+
+    monkeypatch.undo()  # desfaz o patch automático de live_suggestions: aqui a função real é o alvo
+    search._LIVE_SUGGEST.clear()
+    n = {"calls": 0}
+
+    def fake_search(http, term):
+        n["calls"] += 1
+        return [{"id": 1, "name": "Hades"}, {"id": 2, "name": "Hades II"}, {"id": 3, "name": "Hades II"}]
+
+    monkeypatch.setattr("etl.clients.steam.search", fake_search)
+    out = search.live_suggestions("hades", ["Hades"], 8)
+    assert [o["title"] for o in out] == ["Hades II"] and out[0]["live"] and out[0]["game_id"] is None  # já no banco / duplicado saem
+    search.live_suggestions("hades", [], 8)
+    assert n["calls"] == 1  # segunda vez vem do cache
+
+    def boom(http, term):
+        raise RuntimeError("steam fora")
+
+    search._LIVE_SUGGEST.clear()
+    monkeypatch.setattr("etl.clients.steam.search", boom)
+    assert search.live_suggestions("hades", [], 8) == []
+
+
+def test_live_suggestions_drop_dlc_that_extends_a_known_game_but_keep_sequels(monkeypatch):
+    from app.routers import search
+
+    monkeypatch.undo()
+    search._LIVE_SUGGEST.clear()
+    names = [{"id": 1, "name": n} for n in ("Forza Horizon 6 VIP Membership", "Hades II", "Elden Ring Shadow of the Erdtree", "Outro Jogo")]
+    monkeypatch.setattr("etl.clients.steam.search", lambda http, term: names)
+    out = search.live_suggestions("x", ["Forza Horizon 6", "Hades", "Elden Ring"], 8)
+    assert [o["title"] for o in out] == ["Hades II", "Outro Jogo"]
