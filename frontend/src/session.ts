@@ -15,6 +15,13 @@ export async function signIn(email: string, pw: string, signup = false) {
   if (MOCK) return signup ? mockSession.signUp(email, pw) : mockSession.signIn(email, pw);
   const { auth, a } = await fb(); await (signup ? a.createUserWithEmailAndPassword : a.signInWithEmailAndPassword)(auth, email, pw);
 }
+/** Entra (ou cria a conta) com o Google; no Firebase os dois casos são o mesmo fluxo. Fechar o popup não é erro. */
+export async function signInGoogle(): Promise<boolean> {
+  if (MOCK) { await mockSession.signInGoogle(); return true; }
+  const { auth, a } = await fb();
+  try { await a.signInWithPopup(auth, new a.GoogleAuthProvider()); return true; }
+  catch (e: any) { if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") return false; console.error("login Google:", e?.code, e?.message); throw e; }
+}
 export async function logOut() { if (MOCK) return mockSession.logOut(); const { auth, a } = await fb(); await a.signOut(auth); }
 export async function getToken(): Promise<string | undefined> { if (MOCK) return mockSession.getToken(); return (await fb()).auth.currentUser?.getIdToken(); }
 export function subscribeNotifs(user: User, cb: (items: any[]) => void): () => void { // tempo real (Firestore)

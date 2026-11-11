@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signIn } from "../session";
 import { Err, PasswordField } from "../components";
+import { GoogleButton } from "../components/GoogleButton";
 
 const MIN = 6; // mínimo do Firebase Auth
 
@@ -16,6 +17,7 @@ export default function Cadastro({ done }: { done: () => void }) {
   return (
     <form className="wob-card auth" onSubmit={submit}>
       <div className="tight"><h1 className="t-display-lg">Criar conta</h1><p className="wob-hint">Crie alertas de preço e guarde jogos na wishlist.</p></div>
+      <GoogleButton done={done} onError={setErr} />
       <div className="wob-field"><label htmlFor="email">E-mail</label><div className="wob-input wob-input--text"><input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div></div>
       <PasswordField id="pw" label="Senha" value={pw} onChange={setPw} autoComplete="new-password" minLength={MIN} describedBy="pw-rule" />
       <p id="pw-rule" className={`rule${long ? " rule--ok" : ""}`}><i aria-hidden="true" />Mínimo de {MIN} caracteres</p>

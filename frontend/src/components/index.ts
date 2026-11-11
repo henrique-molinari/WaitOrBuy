@@ -14,3 +14,4 @@ export * from "./FilterPanel";
 export * from "./StoreBadge";
 export * from "./PlatformsStrip";
 export * from "./ResultsGrid";
+export * from "./results";

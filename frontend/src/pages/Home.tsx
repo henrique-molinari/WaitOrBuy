@@ -107,7 +107,7 @@ export default function Home({ user, notifs }: { user: User | null | undefined; 
           <span style={{ "--vd": "700ms" } as React.CSSProperties}><Verdict verdict="COMPRAR_AGORA" /></span>
           <span style={{ "--vd": "820ms" } as React.CSSProperties}><Verdict verdict="ESPERAR" /></span>
         </div>
-        <h1 className="t-display-xl"><Words text="Espere ou compre?" /></h1>
+        <h1 className="t-display-xl"><Words text="Wait Or Buy?" /></h1>
         <SearchBar onSubmit={(q) => { location.hash = `#/busca?q=${encodeURIComponent(q)}`; }} />
         <p className="wob-hint rise" style={{ marginTop: "var(--space-3)", animationDelay: "640ms" }}>Buscamos em todas as lojas conectadas, convertemos para reais e dizemos se vale esperar.</p>
       </section>
