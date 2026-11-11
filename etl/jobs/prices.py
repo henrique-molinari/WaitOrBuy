@@ -2,7 +2,7 @@
 import logging
 import re
 
-from etl import config, fx
+from etl import config, fx, matching
 from etl.clients import epic, gog, instant_gaming, nuuvem, steam
 from etl.clients.cheapshark import CheapSharkClient, deal_url
 from etl.db import connect
@@ -182,22 +182,37 @@ def _collect_gog(conn, http, g, today, stats, active) -> bool:
     return True
 
 
+def _nuuvem_candidates(conn, title: str) -> list[str]:
+    """Slugs possíveis do jogo: primeiro os do índice (sitemap oficial), depois os palpites do título."""
+    key = matching.norm(title)
+    rows = conn.execute("SELECT slug, norm_title FROM nuuvem_catalog WHERE norm_title = %s OR norm_title LIKE %s", (key, key + " %")).fetchall()
+    out = nuuvem.pick_slugs(rows, title)
+    return out + [s for s in nuuvem.slug_guesses(title) if s not in out]
+
+
 def _collect_nuuvem(conn, http, g, today, stats, active) -> None:
+    """Usa o slug já conhecido; se ele não rende preço, procura de novo no índice do sitemap (a cada STALE_DAYS)."""
     if NUUVEM_STORE_ID not in active:
         return
-    slug = g.get("nuuvem_slug")
+    slug, price = g.get("nuuvem_slug"), None
     try:
-        if not slug and _stale(g.get("nuuvem_checked_at"), today):
-            slug = nuuvem.find_slug(http, g["title"])  # tenta o slug do título; 404 = loja não vende
+        if slug:
+            price = nuuvem.fetch_price_brl(http, slug)
+        if price is None and _stale(g.get("nuuvem_checked_at"), today):
+            slug = None
+            for cand in _nuuvem_candidates(conn, g["title"]):
+                price = nuuvem.fetch_price_brl(http, cand)
+                if price is not None:
+                    slug = cand
+                    break
             conn.execute("UPDATE games SET nuuvem_slug = %s, nuuvem_checked_at = now() WHERE game_id = %s", (slug, g["game_id"]))
-        nv = nuuvem.fetch_price_brl(http, slug) if slug else None
     except RateLimited:
         raise
     except Exception as exc:
         log.error("nuuvem falhou para %s: %s", g["title"], exc)
         return
-    if nv:
-        _put(conn, g, NUUVEM_STORE_ID, today, nv, "nuuvem_brl", nuuvem.item_url(slug))
+    if price:
+        _put(conn, g, NUUVEM_STORE_ID, today, price, "nuuvem_brl", nuuvem.item_url(slug))
         _count(stats, "nuuvem_brl")
 
 
@@ -210,8 +225,10 @@ def _collect_instant_gaming(conn, http, g, today, stats, active) -> None:
         if url:
             price = instant_gaming.fetch_price_brl(http, url)
         if price is None and _stale(g.get("ig_checked_at"), today):
-            rows = conn.execute("SELECT ig_id, url, platform FROM ig_catalog WHERE norm_title = %s",
-                                (instant_gaming.norm(g["title"]),)).fetchall()
+            key = matching.norm(g["title"])
+            rows = conn.execute("SELECT ig_id, url, platform, norm_title FROM ig_catalog WHERE norm_title = %s OR norm_title LIKE %s",
+                                (key, key + " %")).fetchall()
+            rows = [r for r in rows if matching.title_matches(g["title"], r["norm_title"])]  # a mesma obra (ou edição), nunca sequência/DLC
             url = None
             for cand in instant_gaming.rank(rows)[:IG_MAX_CANDIDATES]:
                 price = instant_gaming.fetch_price_brl(http, cand["url"])
@@ -229,9 +246,35 @@ def _collect_instant_gaming(conn, http, g, today, stats, active) -> None:
         _count(stats, "instantgaming_brl")
 
 
-def refresh_game(conn, http, cs, g, rate, active, today, stats) -> None:
-    """Coleta o preço de UM jogo em todas as fontes: CheapShark (USD→BRL) e, em BRL real, Steam, Epic, GOG, Nuuvem e Instant Gaming."""
-    detail = cs.game(g["cheapshark_game_id"]) if g["cheapshark_game_id"] else None  # jogos achados só em outras lojas não têm id na CheapShark
+def _resolve_ids(conn, http, cs, g, today) -> None:
+    """Jogo achado só numa loja (ex.: GOG ou Epic) ainda não tem id na CheapShark nem na Steam: procura pelo título (a cada STALE_DAYS)."""
+    if not g["cheapshark_game_id"] and _stale(g.get("cs_checked_at"), today):
+        hit = matching.best_match(g["title"], cs.search(g["title"]), key=lambda h: h.external)
+        if hit:
+            sid = int(hit.steamAppID) if hit.steamAppID and hit.steamAppID.isdigit() else None
+            g["cheapshark_game_id"], g["steam_app_id"] = hit.gameID, g["steam_app_id"] or sid
+            conn.execute("UPDATE games SET cheapshark_game_id = %s, steam_app_id = COALESCE(steam_app_id, %s) WHERE game_id = %s",
+                         (hit.gameID, sid, g["game_id"]))
+        conn.execute("UPDATE games SET cs_checked_at = now() WHERE game_id = %s", (g["game_id"],))
+    if not g["steam_app_id"] and _stale(g.get("steam_checked_at"), today):
+        hit = matching.best_match(g["title"], steam.search(http, g["title"]), key=lambda h: h["name"])
+        if hit:
+            g["steam_app_id"] = hit["id"]
+            conn.execute("UPDATE games SET steam_app_id = %s WHERE game_id = %s", (hit["id"], g["game_id"]))
+        conn.execute("UPDATE games SET steam_checked_at = now() WHERE game_id = %s", (g["game_id"],))
+
+
+def refresh_game(conn, http, cs, g, rate, active, today, stats, with_deals: bool = True) -> None:
+    """Coleta o preço de UM jogo em todas as fontes: CheapShark (USD→BRL) e, em BRL real, Steam, Epic, GOG, Nuuvem e Instant Gaming.
+    `with_deals=False` pula a chamada de ofertas da CheapShark (usado na recoleta em massa das lojas, que não precisa dela)."""
+    try:
+        _resolve_ids(conn, http, cs, g, today)
+    except RateLimited:
+        raise
+    except Exception as exc:  # sem os ids o jogo ainda é coletado nas demais lojas
+        log.error("resolução de ids falhou para %s: %s", g["title"], exc)
+        conn.rollback()
+    detail = cs.game(g["cheapshark_game_id"]) if with_deals and g["cheapshark_game_id"] else None
     # Lojas com preço real já gravado hoje não são sobrescritas pela estimativa da CheapShark.
     real = {r["store_id"] for r in conn.execute(
         "SELECT store_id FROM price_snapshots WHERE game_id = %s AND snapshot_date = %s AND price_origin <> 'converted_usd'",
@@ -253,7 +296,7 @@ def refresh_game(conn, http, cs, g, rate, active, today, stats) -> None:
 
 
 GAME_COLS = ("game_id, title, cheapshark_game_id, steam_app_id, nuuvem_slug, nuuvem_checked_at, instant_gaming_url, ig_checked_at, "
-             "epic_slug, epic_checked_at, gog_id, gog_slug, gog_checked_at")
+             "epic_slug, epic_checked_at, gog_id, gog_slug, gog_checked_at, steam_checked_at, cs_checked_at")
 
 
 def run(conn=None, http=None, today=None) -> dict:

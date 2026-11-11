@@ -15,7 +15,7 @@ from etl.clients import epic, gog, steam
 from etl.clients.cheapshark import CheapSharkClient
 from etl.db import connect, mongo_games
 from etl.http import HttpClient, RateLimited
-from etl.jobs import catalog
+from etl.jobs import catalog, seed_demo
 from etl.jobs.prices import GAME_COLS, refresh_game
 from etl.matching import norm, title_matches
 
@@ -144,6 +144,11 @@ def _create(c: Candidate, http: HttpClient, rate: float, active: set, today, col
             conn.execute("DELETE FROM games WHERE game_id = %s", (row["game_id"],))
             conn.commit()
             return None
+        try:  # histórico inicial SIMULADO (is_simulated=true, sinalizado na tela) para o gráfico e o veredito não nascerem vazios
+            seed_demo.run(conn, today, game_ids=[row["game_id"]])
+        except Exception as exc:
+            log.error("histórico inicial de %s falhou: %s", c.title, exc)
+            conn.rollback()
         try:
             doc = catalog.build_doc(g, {}, http, config.RAWG_API_KEY)
             catalog.save_doc(conn, coll, g, doc)
@@ -159,6 +164,13 @@ def discover(conn, http: HttpClient, query: str, max_new: int = MAX_NEW, coll=No
     candidates, failed = gather(http, query)
     if failed >= 4:
         raise RuntimeError("nenhuma loja respondeu à busca")
+    created = register(conn, http, candidates, max_new, coll)
+    log.info("descoberta %r: %d jogos cadastrados", query, len(created))
+    return created
+
+
+def register(conn, http: HttpClient, candidates: list[Candidate], max_new: int = MAX_NEW, coll=None) -> list[int]:
+    """Cadastra e precifica até `max_new` candidatos que o banco ainda não conhece. Devolve os game_id novos."""
     cs_ids, steam_ids, titles = _known(conn)
     todo = [c for c in candidates if not ((c.cheapshark_id and c.cheapshark_id in cs_ids) or (c.steam_id and c.steam_id in steam_ids)
                                           or any(_same_game(t, c.title) for t in titles))][:max_new]
@@ -173,9 +185,7 @@ def discover(conn, http: HttpClient, query: str, max_new: int = MAX_NEW, coll=No
     today = config.today_br()
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         results = list(pool.map(lambda c: _create(c, http, rate, active, today, coll), todo))
-    created = [r for r in results if r]
-    log.info("descoberta %r: %d candidatos novos, %d jogos cadastrados", query, len(todo), len(created))
-    return created
+    return [r for r in results if r]
 
 
 def run(query: str) -> list[int]:
