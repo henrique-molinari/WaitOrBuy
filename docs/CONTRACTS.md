@@ -60,17 +60,28 @@ Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
 
 ### GET /api/search
 Parâmetros (todos opcionais): `q` (0–100 chars; vazio = navega o catálogo), `limit` 1–60 (24), `store` (repetível: `?store=1&store=101`), `max_price` (>0, BRL), `min_discount` 0–100, `sort` = `relevance|price|discount|title|stores` (422 `invalid_sort`), `live` (true: consulta as lojas ao vivo quando o termo não foi pesquisado nas últimas 6 h).
-Retorna jogos acompanhados cujo título contém todas as palavras de `q`; `offers` já filtradas e ordenadas do menor preço ao maior. `facets` conta ofertas por loja **antes** dos filtros (alimenta o filtro de lojas); `discovered` = jogos novos cadastrados nesta busca; `live_error` = aviso quando uma fonte externa não respondeu.
+Retorna jogos acompanhados cujo título contém todas as palavras de `q`; `offers` já filtradas e ordenadas do menor preço ao maior. `facets` conta ofertas por loja **antes** dos filtros (alimenta o filtro de lojas); `discovered` = jogos novos cadastrados nesta busca; `live_error` = aviso quando uma fonte externa não respondeu. **Busca tolerante:** se nenhum título contém o termo, a API procura títulos parecidos (erro de digitação, letras trocadas; `pg_trgm`, similaridade ≥ 0,35) e devolve `fuzzy: true` e `did_you_mean` (título mais parecido). Sem acerto, `fuzzy: false` e `did_you_mean: null`. O frontend deve avisar que são resultados parecidos.
 ```json
-{"query":"hades","count":1,"discovered":0,"live_error":null,
+{"query":"hades","count":1,"discovered":0,"live_error":null,"fuzzy":false,"did_you_mean":null,
  "facets":[{"store_id":1,"name":"Steam","count":2}],
  "results":[{"game_id":1,"slug":"hades","title":"Hades","thumb":"https://.../header.jpg",
   "best_offer":{"...Offer..."},"offers":[{"...Offer, ordenadas por price_brl asc..."}],
   "is_fixture":true,"genres":["Roguelike"],"discovered":false}]}
 ```
 
+### GET /api/recommended
+Parâmetros: `exclude` (repetível, ids dos jogos já listados, até 60), `limit` 1–24 (8). Sugestões para a tela de resultados: jogos do mesmo gênero dos `exclude` primeiro, depois os de maior desconto; cada item traz o menor preço vigente.
+```json
+{"count":1,"items":[{"game_id":2,"slug":"celeste","title":"Celeste","thumb":null,"offer":{"...Offer..."},"reason":"genero"}]}
+```
+`reason` ∈ `genero | promocao`.
+
 ### GET /api/suggest?q=ha
-Autocompletar (só banco local): `{"query":"ha","suggestions":[{"game_id":1,"slug":"hades","title":"Hades"}]}` (até 8).
+Autocompletar: banco local primeiro; com menos de 5 acertos (e 3+ letras) completa com jogos da Steam ao vivo (`live`, padrão true; cache de 1 h por texto; falha da Steam é silenciosa). Até 8.
+```json
+{"query":"had","suggestions":[{"game_id":1,"slug":"hades","title":"Hades","live":false},{"game_id":null,"slug":null,"title":"Hades II","live":true}]}
+```
+`live: true` = jogo ainda fora do banco (`game_id`/`slug` nulos): o frontend manda para `#/busca?q=<título>`, o que o cadastra e precifica.
 
 ### GET /api/platforms
 Lojas conectadas com ofertas reais e provedores de dados.
