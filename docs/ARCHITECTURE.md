@@ -14,7 +14,7 @@ flowchart LR
     J2[job fx]
     J3[job catalog]
     J4[job seed_demo]
-    KN[KNIME<br/>3 workflows - guia]
+    HP[Apache Hop<br/>pipeline PTAX → Postgres]
   end
   subgraph Armazenamento
     PG[(PostgreSQL<br/>preços, câmbio, lojas)]
@@ -23,6 +23,8 @@ flowchart LR
     FA[Firebase Auth]
   end
   API[FastAPI<br/>busca, vale esperar, carrinho, alertas]
+  KN[KNIME<br/>e-mail da wishlist em bom preço]
+  MAIL[E-mail do usuário]
   FE[Frontend React<br/>protótipo]
   CS --> J1
   ST --> J1
@@ -32,18 +34,23 @@ flowchart LR
   J2 --> PG
   J3 --> MG
   J4 --> PG
-  KN -. equivale a .-> J1
+  BC --> HP
+  HP --> PG
   PG --> API
   MG --> API
   SS --> PG
   API <--> FS
   FA --> API
+  API <--> KN
+  KN --> MAIL
   API --> FE
   FE <-- listener --> FS
   FE --> FA
 ```
 
 Fluxo de preços: `etl-runner` executa `fx → prices → catalog` a cada `ETL_INTERVAL_HOURS`, depois chama `POST /api/admin/alerts/evaluate`; a avaliação lê o menor preço atual no PostgreSQL e grava notificações no Firestore; o frontend as recebe pelo listener do Firestore.
+
+Fluxo do e-mail (KNIME, sob demanda): o workflow chama `GET /api/admin/wishlist-deals`, que devolve um e-mail pronto por pessoa com os jogos da wishlist em "comprar agora"; o KNIME envia por SMTP e confirma com `POST /api/admin/wishlist-deals/sent`, que grava o aviso no Firestore para não repetir. Ver [knime/COMO_E_USADO.md](../knime/COMO_E_USADO.md).
 
 ## Por que cada banco
 - **PostgreSQL** — dados relacionais e série temporal de preços: `UNIQUE(jogo, loja, dia)` garante idempotência, agregações (mínimo, média 90 dias) e views (`v_latest_price`, `v_price_stats`) são naturais em SQL.
