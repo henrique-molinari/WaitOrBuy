@@ -6,21 +6,21 @@ games:
   - {title: "Hollow Knight", playtime_hours: 27, genres: [Metroidvania, Ação]}
   - {title: "Celeste", playtime_hours: 8, genres: [Plataforma, Indie]}
   - {title: "Stardew Valley", playtime_hours: 53, genres: [Simulação, Indie]}
-  - {title: "Cyberpunk 2077", playtime_hours: 26, genres: [RPG, Ação]}
+  - {title: "Cyberpunk 2077", nuuvem: cyberpunk-2077, playtime_hours: 26, genres: [RPG, Ação]}
   - {title: "The Witcher 3: Wild Hunt", search: "witcher 3 wild hunt", steam_app_id: 292030, playtime_hours: 51, genres: [RPG, Mundo aberto]}
-  - {title: "Elden Ring", playtime_hours: 60, genres: [RPG, Ação]}
-  - {title: "Red Dead Redemption 2", playtime_hours: 50, genres: [Ação, Mundo aberto]}
+  - {title: "Elden Ring", nuuvem: elden-ring, playtime_hours: 60, genres: [RPG, Ação]}
+  - {title: "Red Dead Redemption 2", nuuvem: red-dead-redemption-2, playtime_hours: 50, genres: [Ação, Mundo aberto]}
   - {title: "Baldur's Gate 3", playtime_hours: 75, genres: [RPG, Estratégia]}
   - {title: "Portal 2", playtime_hours: 8, genres: [Puzzle, Aventura]}
   - {title: "Half-Life 2", playtime_hours: 13, genres: [FPS, Ação]}
   - {title: "Terraria", playtime_hours: 40, genres: [Sandbox, Aventura]}
   - {title: "Cuphead", playtime_hours: 6, genres: [Plataforma, Ação]}
-  - {title: "Disco Elysium", search: "disco elysium the final cut", playtime_hours: 25, genres: [RPG, Narrativo]}
-  - {title: "Dark Souls III", playtime_hours: 30, genres: [RPG, Ação]}
-  - {title: "DOOM Eternal", playtime_hours: 13, genres: [FPS, Ação]}
+  - {title: "Disco Elysium", nuuvem: disco-elysium-the-final-cut, search: "disco elysium the final cut", playtime_hours: 25, genres: [RPG, Narrativo]}
+  - {title: "Dark Souls III", nuuvem: dark-souls-iii, playtime_hours: 30, genres: [RPG, Ação]}
+  - {title: "DOOM Eternal", nuuvem: doom-eternal, playtime_hours: 13, genres: [FPS, Ação]}
   - {title: "Resident Evil 4", playtime_hours: 17, genres: [Terror, Ação]}
   - {title: "God of War", playtime_hours: 20, genres: [Ação, Aventura]}
-  - {title: "Hogwarts Legacy", playtime_hours: 40, genres: [RPG, Mundo aberto]}
+  - {title: "Hogwarts Legacy", nuuvem: hogwarts-legacy, playtime_hours: 40, genres: [RPG, Mundo aberto]}
   - {title: "Sekiro: Shadows Die Twice", search: "sekiro shadows die twice", playtime_hours: 30, genres: [Ação, Aventura]}
   - {title: "Vampire Survivors", playtime_hours: 8, genres: [Roguelike, Indie]}
   - {title: "Slay the Spire", playtime_hours: 25, genres: [Cartas, Roguelike]}

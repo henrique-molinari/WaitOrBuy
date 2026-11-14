@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, brl } from "../api";
-import { Cap, Err, Verdict } from "../ui";
+import { Cap, Err, Verdict } from "../components";
 
 export default function Wishlist() {
   const [wl, setWl] = useState<any[] | null>(null); const [cart, setCart] = useState<any>(null); const [alerts, setAlerts] = useState<any[]>([]); const [err, setErr] = useState<string | null>(null);

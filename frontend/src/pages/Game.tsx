@@ -3,7 +3,7 @@ import type { User } from "../session";
 import { api, brl } from "../api";
 import { PushPrompt } from "../push";
 import { pushRecent } from "../recent";
-import { Cap, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../ui";
+import { Cap, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../components";
 
 export default function Game({ id, user }: { id: number; user: User | null }) {
   const [g, setG] = useState<any>(null); const [h, setH] = useState<any>(null); const [days, setDays] = useState(90);
@@ -45,7 +45,7 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
       <section className="tight">
         <h2 className="t-display-md">Onde comprar</h2><p className="wob-hint">Ranking do menor ao maior preço, em reais.</p>
         <StoreRows offers={g.offers} />
-        <p className="wob-hint">Preços de lojas fora da Steam são estimados pelo dólar PTAX e podem divergir do valor real em reais.</p>
+        <p className="wob-hint">Steam, Epic, GOG, Nuuvem e Instant Gaming informam o preço real em reais (quando a loja não responde, mostramos a estimativa); nas demais lojas o valor é estimado pelo dólar PTAX e pode divergir.</p>
       </section>
 
       <section className="tight">

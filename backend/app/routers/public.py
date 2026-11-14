@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app import db
 from app.errors import AppError
-from app.schemas import DealsResponse, FxOut, GameDetail, History, SearchResponse
+from app.schemas import DealsResponse, FxOut, GameDetail, History
 from app.services import pricing
 
 router = APIRouter()
@@ -15,26 +15,6 @@ def mongo_meta(ids: list[int]) -> dict[int, dict]:
         return {d["game_id"]: d for d in db.mongo_games().find({"game_id": {"$in": ids}}, {"_id": 0})}
     except Exception:
         return {}
-
-
-@router.get("/api/search", response_model=SearchResponse, tags=["busca"])
-def search(q: str = Query(min_length=1, max_length=100), limit: int = Query(20, ge=1, le=50),
-           conn=Depends(db.get_conn)):
-    like = "%" + q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-    games = conn.execute(
-        "SELECT game_id, slug, title FROM games WHERE tracked AND title ILIKE %s "
-        "ORDER BY (lower(title) = lower(%s)) DESC, title LIMIT %s", (like, q.strip(), limit)).fetchall()
-    ids = [g["game_id"] for g in games]
-    offers = pricing.offers_by_game(conn, ids) if ids else {}
-    meta = mongo_meta(ids)
-    results = []
-    for g in games:
-        offs = offers.get(g["game_id"], [])
-        m = meta.get(g["game_id"], {})
-        results.append({"game_id": g["game_id"], "slug": g["slug"], "title": g["title"],
-                        "thumb": m.get("background_image"), "best_offer": offs[0] if offs else None,
-                        "offers": offs, "is_fixture": m.get("is_fixture")})
-    return {"query": q, "count": len(results), "results": results}
 
 
 @router.get("/api/games/{game_id}", response_model=GameDetail, tags=["jogos"])

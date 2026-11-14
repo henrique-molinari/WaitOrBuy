@@ -11,7 +11,7 @@ class Offer(BaseModel):
     price_brl: float
     normal_price_brl: float | None
     discount_pct: float
-    price_origin: Literal["steam_brl", "converted_usd"]
+    price_origin: Literal["steam_brl", "converted_usd", "nuuvem_brl", "instantgaming_brl", "epic_brl", "gog_brl"]
     is_estimated: bool
     deal_url: str | None
     captured_at: str
@@ -25,12 +25,61 @@ class SearchResult(BaseModel):
     best_offer: Offer | None
     offers: list[Offer]
     is_fixture: bool | None
+    genres: list[str] = []
+    discovered: bool = False
+
+
+class StoreFacet(BaseModel):
+    store_id: int
+    name: str
+    count: int
 
 
 class SearchResponse(BaseModel):
     query: str
     count: int
     results: list[SearchResult]
+    facets: list[StoreFacet] = []
+    discovered: int = 0          # jogos novos encontrados ao vivo nesta busca
+    live_error: str | None = None
+    fuzzy: bool = False              # true = nenhum título continha o termo; resultados são "parecidos" (erro de digitação)
+    did_you_mean: str | None = None  # título mais parecido, quando fuzzy
+
+
+class Suggestion(BaseModel):
+    game_id: int | None = None   # None = jogo ainda fora do banco (sugestão ao vivo da Steam); buscar pelo título o cadastra
+    slug: str | None = None
+    title: str
+    live: bool = False
+
+
+class SuggestResponse(BaseModel):
+    query: str
+    suggestions: list[Suggestion]
+
+
+class PlatformOut(BaseModel):
+    store_id: int
+    name: str
+    domain: str | None
+    price_kind: Literal["brl_real", "usd_converted", "mixed"]
+    source: str
+    games: int
+    last_captured_at: str | None
+
+
+class ProviderOut(BaseModel):
+    name: str
+    role: str
+    needs_key: bool
+    enabled: bool
+
+
+class PlatformsResponse(BaseModel):
+    count: int
+    platforms: list[PlatformOut]
+    providers: list[ProviderOut]
+    total_games: int
 
 
 class GameMeta(BaseModel):
@@ -112,6 +161,15 @@ class DealsResponse(BaseModel):
     deals: list[Deal]
 
 
+class Recommended(Deal):
+    reason: str   # "genero" (mesmo gênero dos jogos buscados) | "promocao" (em promoção agora)
+
+
+class RecommendedResponse(BaseModel):
+    count: int
+    items: list[Recommended]
+
+
 class FxOut(BaseModel):
     rate_date: str
     usd_brl_buy: float
@@ -173,6 +231,16 @@ class NotificationOut(BaseModel):
 class NotificationsOut(BaseModel):
     unread: int
     items: list[NotificationOut]
+
+
+class SentItem(BaseModel):
+    game_id: int = Field(gt=0)
+    price_brl: float = Field(gt=0, lt=100000)
+
+
+class WishlistEmailSent(BaseModel):
+    uid: str = Field(min_length=1, max_length=128)
+    items: list[SentItem] = Field(min_length=1, max_length=200)
 
 
 class DeviceIn(BaseModel):

@@ -41,6 +41,13 @@ def handler(request: httpx.Request) -> httpx.Response:
             {"cotacaoCompra": 5.4, "cotacaoVenda": 5.5, "dataHoraCotacao": "2026-11-05 13:00:00.1"},
             {"cotacaoCompra": 5.41, "cotacaoVenda": 5.6, "dataHoraCotacao": "2026-11-06 13:00:00.1"},
             {"cotacaoCompra": None, "cotacaoVenda": None, "dataHoraCotacao": "2026-11-07 13:00:00.1"}]})
+    if url.endswith("nuuvem.com/br-pt/item/hades"):
+        return httpx.Response(200, text='<meta itemprop="priceCurrency" content="BRL" /><meta itemprop="price" content="39.9" />')
+    if "instant-gaming.com/pt/5972-" in url:
+        return httpx.Response(200, text='<meta itemprop="priceCurrency" content="BRL"><meta itemprop="price" content="31.5">'
+                                        '<meta itemprop="eligibleRegion" content="BR">')
+    if url.endswith("sitemap_ig_products_pt.xml"):
+        return httpx.Response(200, text='<url><loc>https://www.instant-gaming.com/pt/5972-comprar-hades-pc-mac-jogo-steam/</loc></url>')
     return httpx.Response(404, json={})
 
 
@@ -124,3 +131,205 @@ def test_seed_demo_idempotent_simulated_and_keeps_real(conn, http):
     assert st["points"] == 181 and st["min_price_brl"] <= 56
     assert count(conn, "SELECT count(*) n FROM v_latest_price WHERE is_simulated") if False else True
     assert count(conn, "SELECT count(*) n FROM v_latest_price") == len(real_before)
+
+
+def test_nuuvem_and_instant_gaming_prices_are_real_brl(conn, http):
+    from etl.jobs import ig_index
+
+    conn.execute("INSERT INTO stores (store_id, name, is_active) VALUES (100, 'Nuuvem', true), (101, 'Instant Gaming', true)")  # vêm da migração; o fixture trunca
+    assert ig_index.run(conn=conn, http=http, force=True) == {"rows": 1}
+    assert ig_index.run(conn=conn, http=http)["skipped"] is True  # índice fresco: não baixa de novo
+    prices.run(conn=conn, http=http)
+    prices.run(conn=conn, http=http)  # idempotente
+    nv = conn.execute("SELECT * FROM price_snapshots WHERE store_id = 100").fetchall()
+    ig = conn.execute("SELECT * FROM price_snapshots WHERE store_id = 101").fetchall()
+    assert len(nv) == len(ig) == 1
+    assert nv[0]["price_origin"] == "nuuvem_brl" and float(nv[0]["price_brl"]) == 39.90 and nv[0]["currency_original"] == "BRL"
+    assert ig[0]["price_origin"] == "instantgaming_brl" and float(ig[0]["price_brl"]) == 31.50 and ig[0]["fx_rate"] is None
+    hades = conn.execute("SELECT nuuvem_slug, instant_gaming_url FROM games WHERE slug = 'hades'").fetchone()
+    assert hades["nuuvem_slug"] == "hades" and "5972-comprar-hades" in hades["instant_gaming_url"]
+
+
+def test_discovery_creates_game_prices_it_and_discards_games_without_offers(conn, http):
+    from etl import discovery
+
+    prices.run(conn=conn, http=http)  # garante câmbio e lojas
+    coll = MongoClient(os.environ["MONGO_URL"])[os.environ["MONGO_DB"]]["games"]
+    new = discovery.discover(conn, http, "Zorblax Quest", coll=coll)
+    assert len(new) == 1
+    g = conn.execute("SELECT * FROM games WHERE game_id = %s", (new[0],)).fetchone()
+    assert g["discovered"] and g["tracked"] and g["title"] == "Zorblax Quest"
+    assert count(conn, f"SELECT count(*) n FROM price_snapshots WHERE game_id = {new[0]} AND NOT is_simulated") == 2  # Steam + Epic
+    assert count(conn, f"SELECT count(DISTINCT snapshot_date) n FROM price_snapshots WHERE game_id = {new[0]} AND is_simulated") > 100  # histórico inicial simulado (sinalizado)
+    assert coll.find_one({"game_id": new[0]})["title"] == "Zorblax Quest"
+    assert discovery.discover(conn, http, "Zorblax Quest", coll=coll) == []  # já conhecido: nada novo
+
+
+def _stores(conn):
+    conn.execute("INSERT INTO stores (store_id, name, is_active) VALUES (7, 'GOG', true), (100, 'Nuuvem', true), (101, 'Instant Gaming', true)")
+
+
+def _real_stores_handler(request: httpx.Request) -> httpx.Response:
+    url = str(request.url)
+    if url == "https://store.epicgames.com/graphql":
+        return httpx.Response(200, json={"data": {"Catalog": {"searchStore": {"elements": [{
+            "title": "Hades", "offerType": "BASE_GAME", "productSlug": "hades", "offerMappings": [{"pageSlug": "hades", "pageType": "productHome"}],
+            "price": {"totalPrice": {"discountPrice": 5999, "originalPrice": 7399, "currencyCode": "BRL", "currencyInfo": {"decimals": 2}}}}]}}}})
+    if "catalog.gog.com" in url:
+        return httpx.Response(200, json={"products": [{"id": "111", "title": "Hades", "slug": "hades"}]})
+    if "api.gog.com/products/111/prices" in url:
+        return httpx.Response(200, json={"_embedded": {"prices": [{"currency": {"code": "BRL"}, "basePrice": "7000 BRL", "finalPrice": "6500 BRL"}]}})
+    return handler(request)
+
+
+def test_epic_and_gog_real_brl_replace_the_cheapshark_estimate_and_are_not_overwritten(conn):
+    _stores(conn)
+    http = HttpClient(pause=0, retries=1, backoff_base=0, transport=httpx.MockTransport(_real_stores_handler))
+    prices.run(conn=conn, http=http)
+    prices.run(conn=conn, http=http)  # idempotente: a estimativa da CheapShark não volta por cima do preço real
+    hades = "(SELECT game_id FROM games WHERE slug = 'hades')"
+    epic = conn.execute(f"SELECT * FROM price_snapshots WHERE store_id = 25 AND game_id = {hades}").fetchall()
+    gog = conn.execute(f"SELECT * FROM price_snapshots WHERE store_id = 7 AND game_id = {hades}").fetchall()
+    assert len(epic) == len(gog) == 1
+    assert epic[0]["price_origin"] == "epic_brl" and float(epic[0]["price_brl"]) == 59.99 and float(epic[0]["normal_price_brl"]) == 73.99 and epic[0]["fx_rate"] is None
+    assert gog[0]["price_origin"] == "gog_brl" and float(gog[0]["price_brl"]) == 65.00 and gog[0]["deal_url"] == "https://www.gog.com/pt/game/hades"
+    row = conn.execute("SELECT epic_slug, gog_id, gog_slug FROM games WHERE slug = 'hades'").fetchone()
+    assert row == {"epic_slug": "hades", "gog_id": 111, "gog_slug": "hades"}
+
+
+def test_epic_and_gog_failure_keeps_the_estimate_without_breaking_the_cycle(conn):
+    _stores(conn)
+    http = HttpClient(pause=0, retries=1, backoff_base=0, transport=httpx.MockTransport(
+        lambda r: httpx.Response(500, json={}) if ("epicgames" in str(r.url) or "gog.com" in str(r.url)) else handler(r)))
+    stats = prices.run(conn=conn, http=http)
+    assert stats["failed"] == 0 and stats["snapshots"] > 0
+    assert count(conn, "SELECT count(*) n FROM price_snapshots WHERE price_origin IN ('epic_brl','gog_brl')") == 0
+    assert count(conn, "SELECT count(*) n FROM price_snapshots WHERE store_id = 25 AND price_origin = 'converted_usd'") > 0
+
+
+def test_instant_gaming_tries_next_candidate_when_first_is_out_of_stock_or_other_region(conn):
+    from etl.jobs import ig_index
+
+    sitemap = ('<url><loc>https://www.instant-gaming.com/pt/100-comprar-hades-pc-steam/</loc></url>'
+               '<url><loc>https://www.instant-gaming.com/pt/200-comprar-hades-pc-steam/</loc></url>'
+               '<url><loc>https://www.instant-gaming.com/pt/300-comprar-hades-pc-steam/</loc></url>')
+    pages = {
+        "/pt/100-": '<meta itemprop="availability" content="http://schema.org/OutOfStock" /><meta itemprop="priceCurrency" content="BRL"><meta itemprop="price" content="10.00">',
+        "/pt/200-": '<meta itemprop="priceCurrency" content="BRL"><meta itemprop="price" content="20.00"><meta itemprop="eligibleRegion" content="DE">',
+        "/pt/300-": ('<meta itemprop="availability" content="http://schema.org/InStock" /><meta itemprop="priceCurrency" content="BRL">'
+                     '<meta itemprop="price" content="30.00"><meta itemprop="eligibleRegion" content="BR">'),
+    }
+
+    def h(request):
+        url = str(request.url)
+        if url.endswith("sitemap_ig_products_pt.xml"):
+            return httpx.Response(200, text=sitemap)
+        for k, v in pages.items():
+            if k in url:
+                return httpx.Response(200, text=v)
+        return handler(request)
+
+    http = HttpClient(pause=0, retries=1, backoff_base=0, transport=httpx.MockTransport(h))
+    _stores(conn)
+    ig_index.run(conn=conn, http=http, force=True)
+    prices.run(conn=conn, http=http)
+    snap = conn.execute("SELECT price_brl, deal_url FROM price_snapshots WHERE store_id = 101").fetchall()
+    assert len(snap) == 1 and float(snap[0]["price_brl"]) == 30.00 and "/pt/300-" in snap[0]["deal_url"]
+    assert "/pt/300-" in conn.execute("SELECT instant_gaming_url FROM games WHERE slug = 'hades'").fetchone()["instant_gaming_url"]
+
+
+def _discovery_handler(request: httpx.Request) -> httpx.Response:
+    url, q = str(request.url), request.url.params
+    if "storesearch" in url:
+        return httpx.Response(200, json={"items": [
+            {"type": "app", "id": 111, "name": "Mortal Kombat 1", "price": {"final": 19999}},
+            {"type": "app", "id": 112, "name": "Mortal Kombat 11 Rain", "price": {"final": 1999}},  # DLC: tipo "dlc" no appdetails
+            {"type": "app", "id": 113, "name": "Mortal Kombat 11", "price": {"final": 22999}}]})
+    if url == "https://store.epicgames.com/graphql":
+        el = {"title": "Mortal Kombat 1", "offerType": "BASE_GAME", "offerMappings": [{"pageSlug": "mk1", "pageType": "productHome"}],
+              "price": {"totalPrice": {"discountPrice": 18999, "originalPrice": 19999, "currencyCode": "BRL", "currencyInfo": {"decimals": 2}}}}
+        excl = dict(el, title="Mortal Kombat Epic Exclusive", offerMappings=[{"pageSlug": "mkx", "pageType": "productHome"}])
+        return httpx.Response(200, json={"data": {"Catalog": {"searchStore": {"elements": [el, excl]}}}})
+    if "catalog.gog.com" in url:
+        return httpx.Response(200, json={"products": []})
+    if "cheapshark.com/api/1.0/games" in url and "mortal" in q.get("title", "").lower():
+        return httpx.Response(200, json=[{"gameID": "900", "steamAppID": "111", "external": "Mortal Kombat™ 1"},
+                                         {"gameID": "901", "steamAppID": None, "external": "Mortal Kombat Switch Edition"}])
+    if "cheapshark.com/api/1.0/games" in url and q.get("id") == "901":  # só a Humble vende (chave de Switch): sem prova de PC
+        return httpx.Response(200, json={"info": {"title": "x", "steamAppID": None}, "deals": [
+            {"storeID": "25", "dealID": "H%3D", "price": "30.00", "retailPrice": "40.00", "savings": "25.0"}]})
+    if "appdetails" in url and "price_overview" not in q.get("filters", ""):
+        app = q["appids"]
+        kind = "dlc" if app == "112" else "game"
+        return httpx.Response(200, json={app: {"success": True, "data": {"type": kind, "name": f"app {app}", "genres": []}}})
+    return handler(request)
+
+
+def test_discovery_finds_games_from_every_store_skips_dlc_and_dedups(conn):
+    from etl import discovery
+
+    http = HttpClient(pause=0, retries=0, backoff_base=0, transport=httpx.MockTransport(_discovery_handler))
+    prices.run(conn=conn, http=http)  # câmbio e lojas
+    coll = MongoClient(os.environ["MONGO_URL"])[os.environ["MONGO_DB"]]["games"]
+    new = discovery.discover(conn, http, "mortal kombat", coll=coll)
+    titles = sorted(r["title"] for r in conn.execute("SELECT title FROM games WHERE discovered"))
+    # Steam (MK1, MK11), Epic (exclusivo) e CheapShark (MK1 de novo, com ™: junta com o da Steam). A DLC "Rain" e o jogo de Switch
+    # (só a Humble o vende) ficam de fora.
+    assert titles == ["Mortal Kombat 1", "Mortal Kombat 11", "Mortal Kombat Epic Exclusive"] and len(new) == 3
+    mk1 = conn.execute("SELECT cheapshark_game_id, steam_app_id FROM games WHERE title = 'Mortal Kombat 1'").fetchone()
+    assert mk1 == {"cheapshark_game_id": "900", "steam_app_id": 111}  # ids das duas fontes no mesmo jogo
+    excl = conn.execute("SELECT game_id FROM games WHERE title = 'Mortal Kombat Epic Exclusive'").fetchone()["game_id"]
+    origins = {r["price_origin"] for r in conn.execute("SELECT price_origin FROM price_snapshots WHERE game_id = %s", (excl,))}
+    assert origins == {"epic_brl"}  # jogo sem id na CheapShark e sem Steam: só Epic
+    assert discovery.discover(conn, http, "mortal kombat", coll=coll) == []  # segunda busca: nada novo, nada duplicado
+    assert count(conn, "SELECT count(*) n FROM games WHERE discovered") == 3
+
+
+def test_discovery_reports_when_no_store_answers(conn):
+    from etl import discovery
+
+    http = HttpClient(pause=0, retries=0, backoff_base=0, transport=httpx.MockTransport(lambda r: httpx.Response(500, json={})))
+    with pytest.raises(RuntimeError, match="nenhuma loja"):
+        discovery.discover(conn, http, "qualquer coisa")
+
+
+def test_discovered_games_are_refreshed_at_most_every_12_hours(conn, http):
+    prices.run(conn=conn, http=http)
+    conn.execute("UPDATE games SET discovered = true WHERE slug = 'hades'")
+    before = conn.execute("SELECT max(captured_at) m FROM price_snapshots WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')").fetchone()["m"]
+    stats = prices.run(conn=conn, http=http)
+    after = conn.execute("SELECT max(captured_at) m FROM price_snapshots WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')").fetchone()["m"]
+    assert before == after and stats["games"] == count(conn, "SELECT count(*) n FROM games WHERE tracked AND NOT discovered")  # recente: pulado
+    conn.execute("UPDATE price_snapshots SET captured_at = now() - interval '13 hours' WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')")
+    prices.run(conn=conn, http=http)
+    assert conn.execute("SELECT max(captured_at) m FROM price_snapshots WHERE game_id = (SELECT game_id FROM games WHERE slug = 'hades')").fetchone()["m"] > after
+
+
+def test_popular_ids_interleave_dedup_and_isolate_failures(monkeypatch):
+    from etl.clients import steam_popular as sp
+
+    monkeypatch.setattr(sp, "_charts", lambda h: [1, 2, 3])
+    monkeypatch.setattr(sp, "_featured", lambda h: (_ for _ in ()).throw(RuntimeError("fora do ar")))
+    monkeypatch.setattr(sp, "_steamspy", lambda h: [2, 9, 1, 8])
+    assert sp.popular_app_ids(None) == [1, 2, 9, 3, 8]  # intercala as fontes, sem repetir; a que falhou não derruba as outras
+
+
+def test_popular_job_registers_new_skips_known_and_remembers_rejects(conn, monkeypatch):
+    from etl.jobs import popular
+
+    conn.execute("INSERT INTO games (title, slug, tracked, steam_app_id) VALUES ('Hades','hades',true,1)")
+    monkeypatch.setattr(popular, "popular_app_ids", lambda h: [1, 2, 3, 4])  # 1 já existe
+    metas = {2: {"name": "Jogo Novo", "type": "game"}, 3: {"name": "Trilha", "type": "music"}, 4: {"name": "Sem Preço", "type": "game"}}
+    monkeypatch.setattr(popular.steam, "fetch_meta", lambda h, app_id: metas[app_id])
+
+    def fake_register(c, h, cands, max_new=8, coll=None):  # só o 2 rende oferta
+        assert [x.steam_id for x in cands] == [2, 4]
+        gid = c.execute("INSERT INTO games (title, slug, tracked, steam_app_id) VALUES ('Jogo Novo','jogo-novo',true,2) RETURNING game_id").fetchone()["game_id"]
+        return [gid]
+
+    monkeypatch.setattr(popular.discovery, "register", fake_register)
+    assert popular.run(limit=10, conn=conn, http=object()) == {"listed": 4, "tried": 3, "created": 1}
+    skipped = {r["steam_app_id"]: r["reason"] for r in conn.execute("SELECT * FROM popular_skip")}
+    assert skipped == {3: "nao_e_jogo", 4: "sem_oferta"}
+    monkeypatch.setattr(popular.steam, "fetch_meta", lambda h, i: pytest.fail("não deve reconsultar descartados nem cadastrados"))
+    assert popular.run(limit=10, conn=conn, http=object())["tried"] == 0

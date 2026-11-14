@@ -42,7 +42,7 @@ users/{uid}/devices/{token}         {token, platform:string|null, created_at:tim
 ```
 Regras (`firebase/firestore.rules`): cada usuário só lê/escreve `users/{uid}/**` com `request.auth.uid == uid`; todo o resto negado. O backend (Admin SDK) ignora as regras e valida o token ele mesmo. Avaliação de alertas usa `collection_group("alerts")`.
 
-## 4. API (FastAPI) — base `http://localhost:8000`, docs em `/docs`
+## 4. API (FastAPI) — base `http://localhost:8001`, docs em `/docs`
 Erros: `{"error": {"code": "<codigo>", "message": "<texto pt-BR>"}}` — códigos: `validation_error` (422), `not_found` (404), `unauthorized` (401), `forbidden` (403), `conflict` (409), `internal_error` (500).
 Auth: `Authorization: Bearer <ID token do Firebase Auth>`; admin: header `X-Admin-Token: <ADMIN_TOKEN>`.
 Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
@@ -53,19 +53,45 @@ Links de oferta recebem `aff=<AFFILIATE_TAG>` quando a variável está definida.
  "discount_pct": 50.0, "price_origin": "converted_usd", "is_estimated": true,
  "deal_url": "https://www.cheapshark.com/redirect?dealID=...", "captured_at": "2026-11-09T18:00:00Z"}
 ```
-`is_estimated = (price_origin == "converted_usd")`. `normal_price_brl` pode ser `null`.
+`price_origin` ∈ `steam_brl | converted_usd | nuuvem_brl | instantgaming_brl | epic_brl | gog_brl`; `is_estimated = (price_origin == "converted_usd")`. `normal_price_brl` pode ser `null`.
 
 ### GET /health → 200
 `{"status":"ok","postgres":true,"mongo":true,"firestore":true}` (503 com `status:"degraded"` se algum cair).
 
-### GET /api/search?q=hades&limit=20
-`q` 1–100 chars (422 se vazio). Retorna jogos acompanhados cujo título contém `q`, ofertas ordenadas do menor preço ao maior.
+### GET /api/search
+Parâmetros (todos opcionais): `q` (0–100 chars; vazio = navega o catálogo), `limit` 1–60 (24), `store` (repetível: `?store=1&store=101`), `max_price` (>0, BRL), `min_discount` 0–100, `sort` = `relevance|price|discount|title|stores` (422 `invalid_sort`), `live` (true: consulta as lojas ao vivo quando o termo não foi pesquisado nas últimas 6 h).
+Retorna jogos acompanhados cujo título contém todas as palavras de `q`; `offers` já filtradas e ordenadas do menor preço ao maior. `facets` conta ofertas por loja **antes** dos filtros (alimenta o filtro de lojas); `discovered` = jogos novos cadastrados nesta busca; `live_error` = aviso quando uma fonte externa não respondeu. **Busca tolerante:** se nenhum título contém o termo, a API procura títulos parecidos (erro de digitação, letras trocadas; `pg_trgm`, similaridade ≥ 0,35) e devolve `fuzzy: true` e `did_you_mean` (título mais parecido). Sem acerto, `fuzzy: false` e `did_you_mean: null`. O frontend deve avisar que são resultados parecidos.
 ```json
-{"query":"hades","count":1,"results":[{
-  "game_id":1,"slug":"hades","title":"Hades","thumb":"https://.../header.jpg",
+{"query":"hades","count":1,"discovered":0,"live_error":null,"fuzzy":false,"did_you_mean":null,
+ "facets":[{"store_id":1,"name":"Steam","count":2}],
+ "results":[{"game_id":1,"slug":"hades","title":"Hades","thumb":"https://.../header.jpg",
   "best_offer":{"...Offer..."},"offers":[{"...Offer, ordenadas por price_brl asc..."}],
-  "is_fixture":true}]}
+  "is_fixture":true,"genres":["Roguelike"],"discovered":false}]}
 ```
+
+### GET /api/recommended
+Parâmetros: `exclude` (repetível, ids dos jogos já listados, até 60), `limit` 1–24 (8). Sugestões para a tela de resultados: jogos do mesmo gênero dos `exclude` primeiro, depois os de maior desconto; cada item traz o menor preço vigente.
+```json
+{"count":1,"items":[{"game_id":2,"slug":"celeste","title":"Celeste","thumb":null,"offer":{"...Offer..."},"reason":"genero"}]}
+```
+`reason` ∈ `genero | promocao`.
+
+### GET /api/suggest?q=ha
+Autocompletar: banco local primeiro; com menos de 5 acertos (e 3+ letras) completa com jogos da Steam ao vivo (`live`, padrão true; cache de 1 h por texto; falha da Steam é silenciosa). Até 8.
+```json
+{"query":"had","suggestions":[{"game_id":1,"slug":"hades","title":"Hades","live":false},{"game_id":null,"slug":null,"title":"Hades II","live":true}]}
+```
+`live: true` = jogo ainda fora do banco (`game_id`/`slug` nulos): o frontend manda para `#/busca?q=<título>`, o que o cadastra e precifica.
+
+### GET /api/platforms
+Lojas conectadas com ofertas reais e provedores de dados.
+```json
+{"count":13,"total_games":38,
+ "platforms":[{"store_id":101,"name":"Instant Gaming","domain":"instant-gaming.com","price_kind":"brl_real",
+   "source":"Instant Gaming (sitemap + página do produto)","games":26,"last_captured_at":"2026-11-10T..."}],
+ "providers":[{"name":"CheapShark","role":"...","needs_key":false,"enabled":true}]}
+```
+`price_kind` (calculado das ofertas vigentes de cada loja): `brl_real` (todas em R$ real: Steam, Nuuvem, Instant Gaming, e GOG/Epic quando a loja respondeu), `mixed` (parte real, parte ainda estimada) ou `usd_converted` (só estimativa CheapShark × PTAX).
 
 ### GET /api/games/{game_id}
 404 `not_found` se o jogo não existe.
@@ -125,6 +151,7 @@ Lojas completas primeiro (menor total), depois incompletas (menor total). `best_
 - **Pedidos do front (push web), o front já está pronto:** (1) `send_push` deve mandar também `data={"game_id":"<id>"}` (o service worker `frontend/public/push-sw.js` abre `/#/jogo/<id>` ao clicar; sem `data` abre `/#/avisos`); (2) `DELETE /api/me/devices/{token}` para o usuário desligar no app (hoje só dá para desligar nas permissões do navegador); (3) remover o token do dispositivo quando o FCM devolver `UNREGISTERED`. Front precisa das variáveis `VITE_FIREBASE_*` e `VITE_FCM_VAPID_KEY` (ver `frontend/.env.example`).
 
 ### Interno
+- `GET /api/admin/wishlist-deals[?uid=&cooldown_days=30]` (admin) → `{"count","skipped_without_email","users":[{"uid","email","items":[{"game_id","title","store_id","store_name","price_brl","is_estimated","deal_url","confidence","reason","based_on_simulated"}],"subject","body_text","body_html","confirm_body"}]}` (`confirm_body` = texto JSON pronto para o corpo do POST `/sent`); `POST /api/admin/wishlist-deals/sent` corpo `{"uid","items":[{"game_id","price_brl"}]}` → `{"uid","registered"}`. Detalhes em [API.md](API.md).
 - `POST /api/admin/alerts/evaluate[?uid=<uid>]` (uid opcional restringe a um usuário; usado nos testes) header `X-Admin-Token` (403 `forbidden` se errado) → `{"alerts_checked":3,"triggered":1,"rearmed":0,"notifications_created":1,"push":"nao_configurado"}`; `push ∈ {"nao_configurado","enviado"}`.
 - CLI equivalente: `python -m app.cli evaluate-alerts`.
 

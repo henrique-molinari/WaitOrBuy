@@ -55,6 +55,11 @@ class CheapSharkClient:
     def search(self, title: str, limit: int = 10) -> list[SearchHit]:
         return _validate_list(SearchHit, self.http.get_json(f"{BASE}/games", {"title": title, "limit": limit}), "busca")
 
+    def by_steam_app_id(self, app_id: int) -> SearchHit | None:
+        """Busca exata pelo app da Steam (mais confiável que o título, que muda entre lojas)."""
+        hits = _validate_list(SearchHit, self.http.get_json(f"{BASE}/games", {"steamAppID": app_id}), "busca")
+        return hits[0] if hits else None
+
     def game(self, game_id: str) -> GameDetail:
         data = self.http.get_json(f"{BASE}/games", {"id": game_id})
         info = data.get("info") or {}
