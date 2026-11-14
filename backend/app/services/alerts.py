@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime, timezone
 
+from google.api_core.exceptions import FailedPrecondition
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from app import firebase
@@ -30,12 +31,35 @@ def best_price(conn, game_id: int, store_id: int | None) -> dict | None:
         (game_id, store_id)).fetchone()
 
 
+def _active_alerts(fs):
+    """Alertas ativos de todos os usuários. Usa o índice de collection group (firebase/firestore.indexes.json); se ele ainda
+    não foi publicado no projeto, lê todos e filtra aqui, para a avaliação nunca parar por falta de índice."""
+    group = fs.collection_group("alerts")
+    try:
+        yield from list(group.where(filter=FieldFilter("active", "==", True)).stream())
+    except FailedPrecondition:
+        log.warning("índice de collection group 'alerts.active' ausente no Firestore; filtrando em memória (publique firebase/firestore.indexes.json)")
+        for doc in group.stream():
+            if (doc.to_dict() or {}).get("active"):
+                yield doc
+
+
+def push_all(fs, uid: str, game_id: int, title: str, body: str) -> bool:
+    """Push em todos os dispositivos do usuário; apaga os que o FCM diz não existirem mais. True se ao menos um saiu."""
+    sent = False
+    for dev in fs.collection("users").document(uid).collection("devices").stream():
+        res = firebase.send_push(dev.to_dict().get("token", dev.id), title, body, {"game_id": game_id, "title": title, "body": body})
+        if res == "token_invalido":
+            dev.reference.delete()  # navegador desinstalou/limpou: não tentar mais
+        sent = sent or res == "enviado"
+    return sent
+
+
 def evaluate(conn, fs=None, only_uid: str | None = None) -> dict:
     fs = fs or firebase.firestore_client()
     stats = {"alerts_checked": 0, "triggered": 0, "rearmed": 0, "notifications_created": 0, "push": "nao_configurado"}
     titles = {r["game_id"]: r["title"] for r in conn.execute("SELECT game_id, title FROM games")}
-    docs = fs.collection_group("alerts").where(filter=FieldFilter("active", "==", True)).stream()
-    for doc in docs:
+    for doc in _active_alerts(fs):
         if only_uid and doc.reference.parent.parent.id != only_uid:
             continue
         a = doc.to_dict()
@@ -61,12 +85,8 @@ def evaluate(conn, fs=None, only_uid: str | None = None) -> dict:
                 doc.reference.update({"last_triggered_price": price, "last_triggered_at": now})
                 stats["triggered"] += 1
                 stats["notifications_created"] += 1
-                if firebase.push_enabled():
-                    sent = False
-                    for dev in fs.collection("users").document(uid).collection("devices").stream():
-                        sent = firebase.send_push(dev.to_dict().get("token", dev.id), f"{title} chegou ao seu preço", body) or sent
-                    if sent:
-                        stats["push"] = "enviado"
+                if firebase.push_enabled() and push_all(fs, uid, a["game_id"], f"{title} chegou ao seu preço", body):
+                    stats["push"] = "enviado"
         except Exception as exc:  # um alerta com dado ruim não derruba os demais
             log.error("alerta %s falhou: %s", doc.id, exc)
     return stats

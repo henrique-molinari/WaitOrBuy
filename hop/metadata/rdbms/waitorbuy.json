@@ -1,0 +1,26 @@
+{
+  "rdbms": {
+    "POSTGRESQL": {
+      "databaseName": "${DB_NAME}",
+      "pluginId": "POSTGRESQL",
+      "accessType": 0,
+      "hostname": "${DB_HOST}",
+      "password": "${DB_PASS}",
+      "port": "5432",
+      "username": "${DB_USER}",
+      "manualUrl": "",
+      "servername": "",
+      "dataTablespace": "",
+      "indexTablespace": "",
+      "initialPoolSize": 5,
+      "maximumPoolSize": 10,
+      "usingConnectionPool": false,
+      "usingDoubleDecimalAsSchemaTableSeparator": false,
+      "supportsBooleanDataType": true,
+      "supportsTimestampDataType": true,
+      "preserveReservedCase": true,
+      "attributes": {}
+    }
+  },
+  "name": "waitorbuy"
+}

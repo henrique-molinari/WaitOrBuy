@@ -19,7 +19,7 @@ cat <<MSG
 
 == WaitOrBuy pronto ==
 Frontend : http://localhost:5173
-API/docs : http://localhost:8000/docs
-Login demo: demo@waitorbuy.test / demo-123456
+API/docs : http://localhost:8001/docs
+Login demo (só no modo emulador): demo@waitorbuy.test / demo-123456
 Alerta ponta a ponta: crie um alerta com alvo acima do preço atual e rode: make alerts-eval
 MSG

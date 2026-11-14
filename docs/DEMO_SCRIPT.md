@@ -1,6 +1,6 @@
 # Roteiro da demonstração (≈ 2 min 15 s dentro dos 5 min)
 
-**Antes:** `make demo` concluído; abra `http://localhost:5173` e `http://localhost:8000/docs` em abas. Login demo: `demo@waitorbuy.test` / `demo-123456`. Hoje (09/11/2026) a Black Friday é **27/11** e a Steam Autumn Sale começa em **25/11**.
+**Antes:** `make demo` concluído; abra `http://localhost:5173` e `http://localhost:8001/docs` em abas. Login demo: `demo@waitorbuy.test` / `demo-123456`. Hoje (09/11/2026) a Black Friday é **27/11** e a Steam Autumn Sale começa em **25/11**.
 
 | Tempo | Passo | Fala |
 |---|---|---|

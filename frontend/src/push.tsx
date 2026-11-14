@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import { MOCK } from "./session";
-import { Cap } from "./ui";
+import { Cap } from "./components";
 
 export type PushStatus = "unsupported" | "unconfigured" | "off" | "on" | "denied";
 const VAPID = import.meta.env.VITE_FCM_VAPID_KEY as string | undefined;

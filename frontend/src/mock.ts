@@ -97,6 +97,7 @@ export const mockSession = {
   onAuth(cb: (u: MockUser | null) => void) { cb(S.user); const f = () => cb(S.user); authL.add(f); return () => { authL.delete(f); }; },
   async signIn(email: string, pw: string) { await wait(); if (email === "demo@waitorbuy.test" && pw === "demo-123456") return setUser(email); throw err("auth/invalid-credential"); },
   async signUp(email: string, pw: string) { await wait(); if (pw.length < 6) throw err("auth/weak-password"); return setUser(email); },
+  async signInGoogle() { await wait(); return setUser("google@waitorbuy.test"); },
   async logOut() { S.user = null; save(); authL.forEach((f) => f()); },
   getToken: async () => (S.user ? "mock-token" : undefined),
   subscribeNotifs(cb: (items: Notif[]) => void) { const f = () => cb(notifList()); listeners.add(f); f(); return () => { listeners.delete(f); }; },
@@ -105,6 +106,9 @@ const authL = new Set<() => void>();
 const setUser = (email: string) => { S.user = { uid: "mock-user", email }; save(); authL.forEach((f) => f()); };
 const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Parecido com o título (erro de digitação): distância de edição da palavra digitada contra cada palavra do título.
+const lev = (a: string, b: string) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; };
+const similar = (title: string, t: string) => { const w = norm(title).split(/\W+/), q = norm(t).split(/\W+/).filter(Boolean); return q.length > 0 && q.every((x) => w.some((y) => lev(x, y) <= Math.max(1, Math.floor(x.length / 4)))); };
 const card = (g: ReturnType<typeof build>) => ({ game_id: g.d.id, slug: norm(g.d.title).replace(/\W+/g, "-"), title: g.d.title, thumb: thumb(g.d) });
 
 /* ---------- roteador: mesmos caminhos e formatos do CONTRACTS.md ---------- */
@@ -115,9 +119,31 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
   let r: RegExpMatchArray | null;
 
   if (p === "/api/search") {
-    const t = (q.get("q") ?? "").trim(); if (!t) throw err("Digite pelo menos 1 caractere para buscar.");
-    const res = DB.filter((g) => norm(g.d.title).includes(norm(t))).slice(0, Number(q.get("limit") ?? 20)).map((g) => ({ ...card(g), best_offer: g.offers[0] ?? null, offers: g.offers, is_fixture: true }));
-    return { query: t, count: res.length, results: res };
+    const t = (q.get("q") ?? "").trim(), stores = q.getAll("store").map(Number), maxP = Number(q.get("max_price") ?? 0), minD = Number(q.get("min_discount") ?? 0), sort = q.get("sort") ?? "relevance";
+    const facet = new Map<number, { store_id: number; name: string; count: number }>();
+    const exact = DB.filter((g) => norm(g.d.title).includes(norm(t)));
+    const fuzzy = !!t && norm(t).replace(/\W/g, "").length >= 3 && exact.length === 0, base = fuzzy ? DB.filter((g) => similar(g.d.title, t)) : exact;
+    let res = base.map((g) => {
+      g.offers.forEach((o) => { const f = facet.get(o.store_id) ?? { store_id: o.store_id, name: o.store_name, count: 0 }; f.count++; facet.set(o.store_id, f); });
+      const offers = g.offers.filter((o) => (!stores.length || stores.includes(o.store_id)) && (!maxP || o.price_brl <= maxP) && o.discount_pct >= minD);
+      return { ...card(g), best_offer: offers[0] ?? null, offers, is_fixture: true, genres: g.d.genres, discovered: false };
+    }).filter((r) => r.offers.length);
+    if (sort === "price") res.sort((a, b) => a.best_offer!.price_brl - b.best_offer!.price_brl);
+    else if (sort === "discount") res.sort((a, b) => Math.max(...b.offers.map((o) => o.discount_pct)) - Math.max(...a.offers.map((o) => o.discount_pct)));
+    else if (sort === "title") res.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === "stores") res.sort((a, b) => b.offers.length - a.offers.length);
+    res = res.slice(0, Number(q.get("limit") ?? 24));
+    return { query: t, count: res.length, results: res, facets: [...facet.values()].sort((a, b) => b.count - a.count), discovered: 0, live_error: null, fuzzy: fuzzy && base.length > 0, did_you_mean: fuzzy && base.length ? base[0].d.title : null };
+  }
+  if (p === "/api/suggest") { const t = norm(q.get("q") ?? ""); return { query: t, suggestions: (DB.some((g) => norm(g.d.title).includes(t)) ? DB.filter((g) => norm(g.d.title).includes(t)) : t.replace(/\W/g, "").length >= 3 ? DB.filter((g) => similar(g.d.title, t)) : []).slice(0, 8).map((g) => ({ game_id: g.d.id, slug: card(g).slug, title: g.d.title })) }; }
+  if (p === "/api/recommended") {
+    const ex = new Set(q.getAll("exclude").map(Number)), items = DB.filter((g) => !ex.has(g.d.id) && g.offers.length).slice(0, Number(q.get("limit") ?? 8))
+      .map((g) => ({ ...card(g), offer: g.offers[0], reason: "promocao" }));
+    return { count: items.length, items };
+  }
+  if (p === "/api/platforms") {
+    const platforms = STORES.map((s) => ({ store_id: s.id, name: s.name, domain: null, price_kind: s.id === 1 ? "brl_real" : "usd_converted", source: s.id === 1 ? "Steam (API oficial)" : "CheapShark (USD convertido pelo PTAX)", games: DB.filter((g) => g.offers.some((o) => o.store_id === s.id)).length, last_captured_at: new Date().toISOString() }));
+    return { count: platforms.length, platforms, total_games: DB.length, providers: [{ name: "CheapShark", role: "Preços e busca (USD)", needs_key: false, enabled: true }, { name: "Steam Store API", role: "Preço real em BRL", needs_key: false, enabled: true }] };
   }
   if (p === "/api/deals/home") {
     const deals = DB.filter((g) => g.offers.length).map((g) => ({ ...card(g), offer: g.offers[0] })).sort((a, b) => b.offer.discount_pct - a.offer.discount_pct).slice(0, Number(q.get("limit") ?? 12));

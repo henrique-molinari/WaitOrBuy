@@ -20,7 +20,7 @@ c = httpx.Client(base_url=API, timeout=60)
 s = c.get("/api/search", params={"q": "hades"}).json()
 offers = s["results"][0]["offers"]
 check("busca retorna ofertas ordenadas", [o["price_brl"] for o in offers] == sorted(o["price_brl"] for o in offers), f"{len(offers)} ofertas")
-check("toda oferta tem price_origin", all(o["price_origin"] in ("steam_brl", "converted_usd") for o in offers))
+check("toda oferta tem price_origin", all(o["price_origin"] in ("steam_brl", "converted_usd", "nuuvem_brl", "instantgaming_brl", "epic_brl", "gog_brl") for o in offers))
 gid, best = s["results"][0]["game_id"], offers[0]["price_brl"]
 g = c.get(f"/api/games/{gid}").json()
 check("página do jogo: veredito + histórico", g["verdict"]["verdict"] in ("COMPRAR_AGORA", "ESPERAR", "NEUTRO") and g["stats"]["history_days"] > 90, g["verdict"]["verdict"])

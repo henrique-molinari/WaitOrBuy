@@ -6,10 +6,10 @@ Coleção pronta para testar a API do WaitOrBuy: [waitorbuy.insomnia.json](waito
 
 ```bash
 make up && make migrate && make etl && make seed-demo
-python scripts/demo_user.py      # garante o usuário demo no emulador (demo@waitorbuy.test)
+bash scripts/e2e.sh             # modo emulador: cria o usuário demo (demo@waitorbuy.test) e roda o fluxo completo
 ```
 
-Confira em http://localhost:8000/health que os três bancos respondem.
+Confira em http://localhost:8001/health que os três bancos respondem.
 
 ## 2. Importar no Insomnia
 
@@ -19,8 +19,8 @@ O ambiente já vem configurado (`Manage Environments`):
 
 | Variável | Valor padrão |
 |---|---|
-| `base_url` | `http://localhost:8000` |
-| `auth_url` | `http://localhost:9099` (Auth Emulator) |
+| `base_url` | `http://localhost:8001` |
+| `auth_url` | `http://localhost:9099` (Auth Emulator; só no modo emulador) |
 | `admin_token` | `troque-este-token-admin` (igual ao `.env`) |
 | `search_term` | `hades` |
 
