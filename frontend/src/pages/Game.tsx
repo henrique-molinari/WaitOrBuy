@@ -9,7 +9,7 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
   const [g, setG] = useState<any>(null); const [h, setH] = useState<any>(null); const [days, setDays] = useState(90);
   const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState(""); const [made, setMade] = useState<number | null>(null);
   useEffect(() => { setG(null); setErr(null); api(`/api/games/${id}`).then(setG).catch((e) => setErr(e.message)); }, [id]);
-  useEffect(() => { if (g) pushRecent({ id, title: g.title, thumb: g.thumb ?? null }); }, [g, id]);
+  useEffect(() => { if (g) pushRecent({ id, title: g.title, thumb: g.meta.background_image ?? g.thumb ?? null }); }, [g, id]);
   useEffect(() => { api(`/api/games/${id}/history?days=${days}`).then(setH).catch((e) => setErr(e.message)); }, [id, days]);
   if (err && !g) return <Err e={err} />;
   const view = () => {
