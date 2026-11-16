@@ -16,7 +16,7 @@ h1,h2,h3{margin:0}
 .search{position:relative;z-index:30;display:flex;gap:var(--space-3);flex-wrap:wrap;max-width:680px;margin:0 auto}
 .search .wob-input{flex:1;min-width:240px;height:52px}
 .search .sbox .wob-input{height:52px}
-.search-btn{align-self:flex-end;height:52px;padding:0 var(--space-6);font-size:16px}
+.search-btn{align-self:flex-end;height:42px;padding:0 var(--space-6);font-size:16px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--space-5)}
 .gcard{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);text-decoration:none;color:var(--ink);padding:var(--space-4)}
 .gcard:hover{border-color:var(--ink)}
@@ -111,7 +111,7 @@ form.stack{margin:0 auto}
 .icon-btn{display:grid;place-items:center;width:40px;height:40px;border:2px solid var(--border-strong);border-radius:var(--radius-md);background:transparent;color:var(--ink);cursor:pointer;flex:none;padding:0}
 .icon-btn svg{width:22px;height:22px}
 .nav-m{display:none}
-@media (max-width:720px){.tbtn--login{display:none}.nav-m{display:contents}.search .wob-btn{width:100%;height:48px!important}}
+@media (max-width:720px){.tbtn--login{display:none}.nav-m{display:contents}.search .wob-btn{width:100%;height:42px!important}}
 /* Gráfico v2: leituras acima, área lisa, scrubber */
 .cstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2);margin:0 0 var(--space-4);text-align:center}
 .cs{display:flex;flex-direction:column;align-items:center;gap:var(--space-1);padding-bottom:var(--space-2);border-bottom:3px solid transparent}
@@ -203,3 +203,12 @@ form.stack{margin:0 auto}
 
 /* Lojas conectadas no celular: nome em cima, contagem e origem do preço embaixo (antes as colunas se sobrepunham) */
 @media (max-width:640px){.plist .item{flex-wrap:wrap;gap:var(--space-2) var(--space-3)}.plist .item .grow{flex:1 1 100%}.plist .item .wob-cap{flex:1 1 0;min-width:0;text-align:right}}
+
+/* Busca: tudo alinhado à esquerda na mesma coluna (voltar, campo, título, cards, recomendados) */
+.page-busca{text-align:left}
+.page-busca .tight{align-items:flex-start}
+.page-busca .tight>*{max-width:none}
+.page-busca .tight>.notice,.page-busca .tight>.wob-hint,.page-busca .tight>p{margin-left:0;margin-right:0}
+.page-busca .search{margin-left:0;margin-right:0}
+.page-busca .tight>.rlist,.page-busca .tight>.search{align-self:stretch}
+.page-busca .line,.page-busca .filters .head{justify-content:flex-start}

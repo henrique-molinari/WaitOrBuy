@@ -106,7 +106,7 @@ export default function Home({ user, notifs }: { user: User | null | undefined; 
     <div className="stack">
       <section className="hero">
         <div className="hero-verdicts" aria-hidden="true">
-          <span style={{ "--vd": "700ms" } as React.CSSProperties}><Verdict verdict="COMPRAR_AGORA" /></span>
+          <a href="#/" style={{ "--vd": "700ms", textDecoration: "none" } as React.CSSProperties} onClick={(e) => { e.preventDefault(); document.getElementById("promo")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }}><Verdict verdict="COMPRAR_AGORA" /></a>
           <span style={{ "--vd": "820ms" } as React.CSSProperties}><Verdict verdict="ESPERAR" /></span>
         </div>
         <h1 className="t-display-xl"><Words text="Wait Or Buy?" /></h1>
@@ -117,7 +117,7 @@ export default function Home({ user, notifs }: { user: User | null | undefined; 
       {user && <Personal user={user} notifs={notifs} me={me} err={meErr} />}
       <RecentRow />
       {user === null && <HowItWorks />}
-      <section className="tight" aria-live="polite">
+      <section id="promo" className="tight" aria-live="polite">
         <h2 className="t-display-md">Em promoção agora</h2>
         <Loadable ready={deals !== null || !!err} skeleton={<CardsSkeleton />}>{() => <>
           {deals?.length === 0 && <p className="body">Nenhuma oferta no momento.</p>}
