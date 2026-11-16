@@ -1,7 +1,7 @@
 // Backend FICTÍCIO para desenvolver o front sem API. Segue docs/CONTRACTS.md (formatos, erros, regra "vale esperar?").
 // Ativo só com `npm run dev:mock` (VITE_MOCK=1). Estado (wishlist, alertas, avisos, login) persiste em localStorage.
 type Opts = { method?: string; body?: any; authed?: boolean };
-export type MockUser = { uid: string; email: string | null };
+export type MockUser = { uid: string; email: string | null; name?: string | null };
 
 const brl = (v: number) => "R$ " + v.toFixed(2).replace(".", ",");
 const err = (m: string) => new Error(m);

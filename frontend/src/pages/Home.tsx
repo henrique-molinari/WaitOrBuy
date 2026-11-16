@@ -9,11 +9,13 @@ import { usePlatforms } from "../hooks/usePlatforms";
 type Me = { wl: Card[]; alerts: any[]; prices: Record<number, number | null> };
 
 const greet = () => { const h = new Date().getHours(); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; };
-const firstName = (email: string | null) => { const n = (email ?? "").split("@")[0].split(/[._\-+\d]+/)[0]; return n ? n[0].toUpperCase() + n.slice(1) : ""; };
+const firstName = (email: string | null, name?: string | null) => {
+  const full = (name ?? "").trim().split(/\s+/)[0]; if (full) return full[0].toUpperCase() + full.slice(1);  // nome da conta (Google); só cai no e-mail se não houver
+  const n = (email ?? "").split("@")[0].split(/[._\-+\d]+/)[0]; return n ? n[0].toUpperCase() + n.slice(1) : ""; };
 
 function Personal({ user, notifs, me, err }: { user: User; notifs: any[]; me: Me | null; err: string | null }) {
   const unread = notifs.filter((n) => !n.read), hit = unread[0];
-  const name = firstName(user.email);
+  const name = firstName(user.email, user.name);
   return (
     <section className="tight" aria-label="Para você">
       <Cap>{greet().toUpperCase()}{name ? `, ${name.toUpperCase()}` : ""}</Cap>

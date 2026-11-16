@@ -8,7 +8,7 @@ const fb = async () => ({ ...(await import("./firebase")), a: await import("fire
 export function onAuth(cb: (u: User | null) => void): () => void {
   if (MOCK) return mockSession.onAuth(cb);
   let off = () => {}, dead = false;
-  fb().then(({ auth, a }) => { if (!dead) off = a.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email } : null)); });
+  fb().then(({ auth, a }) => { if (!dead) off = a.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, name: u.displayName } : null)); });
   return () => { dead = true; off(); };
 }
 export async function signIn(email: string, pw: string, signup = false) {

@@ -195,3 +195,6 @@ form.stack{margin:0 auto}
 .rthumb img,.rthumb .sk-img{display:block;width:100%;aspect-ratio:460/215;object-fit:cover;border-radius:var(--radius-sm);background:var(--surface-sunk)}
 .rtitle{font-family:var(--font-display);font-weight:800;font-size:24px;line-height:26px;flex:1}
 .rprice{display:flex;flex-direction:column;gap:2px}
+
+/* Lojas conectadas no celular: nome em cima, contagem e origem do preço embaixo (antes as colunas se sobrepunham) */
+@media (max-width:640px){.plist .item{flex-wrap:wrap;gap:var(--space-2) var(--space-3)}.plist .item .grow{flex:1 1 100%}.plist .item .wob-cap{flex:1 1 0;min-width:0;text-align:right}}

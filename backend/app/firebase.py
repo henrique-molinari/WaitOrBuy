@@ -45,6 +45,12 @@ def user_email(uid: str) -> str | None:
     return auth.get_user(uid).email
 
 
+def user_name(uid: str) -> str | None:
+    """Nome de exibição da conta (login com Google); None se a conta não tiver. ponytail: 2ª leitura do Auth por pessoa, junte com user_email se o volume crescer."""
+    _init()
+    return auth.get_user(uid).display_name
+
+
 def push_enabled() -> bool:
     return bool(settings.firebase_credentials)
 
