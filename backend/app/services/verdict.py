@@ -47,6 +47,14 @@ def evaluate(i: VerdictInput, cfg: VerdictConfig = VERDICT) -> dict:
     def out(v: str, reasons: list[str]) -> dict:
         return {"verdict": v, "confidence": conf, "reasons": reasons, "metrics": metrics}
 
+    discount = i.discount_pct or 0.0
+    great = i.price_now is not None and discount >= cfg.great_discount_pct
+
+    # A0 — desconto enorme: é um fato da loja, não depende de histórico nem de liquidação futura
+    if great:
+        return out("COMPRAR_AGORA", [
+            f"{brl(i.price_now)} com {discount:.0f}% de desconto: é um ótimo preço, não há motivo para esperar."])
+
     if i.price_now is None or i.min_ever is None or i.history_days < cfg.min_history_days:
         return out("INSUFICIENTE", [
             f"Histórico de apenas {i.history_days} dia(s): são necessários ao menos {cfg.min_history_days} "
@@ -58,9 +66,10 @@ def evaluate(i: VerdictInput, cfg: VerdictConfig = VERDICT) -> dict:
             f"{brl(i.price_now)} está no menor preço histórico ou muito perto (mínimo {brl(i.min_ever)})."])
 
     above_min = (i.price_now / i.min_ever - 1) * 100 if i.min_ever else 0.0
+    can_wait = discount < cfg.no_wait_discount_pct  # com bom desconto já em mãos, nunca mandamos esperar
 
     # B — grande liquidação chegando e preço bem acima do mínimo
-    if sale_soon and i.price_now > _lim(cfg.wait_sale_min_factor, i.min_ever):
+    if can_wait and sale_soon and i.price_now > _lim(cfg.wait_sale_min_factor, i.min_ever):
         when = i.sale_date.strftime("%d/%m/%Y") if i.sale_date else "em breve"
         starts = "está em andamento" if i.days_to_next_sale == 0 else f"começa em {i.days_to_next_sale} dia(s), {when}"
         return out("ESPERAR", [

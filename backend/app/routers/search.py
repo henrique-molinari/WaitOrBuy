@@ -87,9 +87,10 @@ def _sorter(sort: str):
 @router.get("/api/search", response_model=SearchResponse)
 def search(q: str = Query("", max_length=100), limit: int = Query(24, ge=1, le=60),
            store: list[int] = Query(default=[]), max_price: float | None = Query(None, gt=0),
-           min_discount: float = Query(0, ge=0, le=100), sort: str = Query("relevance"),
+           min_discount: float = Query(0, ge=0, le=100), buy_now: bool = Query(False), sort: str = Query("relevance"),
            live: bool = Query(True), conn=Depends(db.get_conn)):
-    """Filtros: loja(s), preço máximo, desconto mínimo; ordenação; `live` procura jogos novos nas lojas. Sem `q`, navega o catálogo."""
+    """Filtros: loja(s), preço máximo, desconto mínimo, `buy_now` (só jogos com veredito "Compre agora", o mesmo da tela do jogo);
+    ordenação; `live` procura jogos novos nas lojas. Sem `q`, navega o catálogo."""
     q = q.strip()
     if sort not in SORTS:
         raise AppError(422, "invalid_sort", f"Ordenação inválida. Use: {', '.join(SORTS)}.")
@@ -111,6 +112,7 @@ def search(q: str = Query("", max_length=100), limit: int = Query(24, ge=1, le=6
     offers = pricing.offers_by_game(conn, ids) if ids else {}
     meta = mongo_meta(ids)
     rows, facet = [], {}
+    sale = pricing.next_sale_info(conn) if buy_now and ids else None
     for g in games:
         offs = offers.get(g["game_id"], [])
         for o in offs:
@@ -123,6 +125,8 @@ def search(q: str = Query("", max_length=100), limit: int = Query(24, ge=1, le=6
         if min_discount:
             offs = [o for o in offs if o["discount_pct"] >= min_discount]
         if not offs:
+            continue
+        if buy_now and pricing.build_verdict(offs[0], pricing.game_stats(conn, g["game_id"]), sale)["verdict"] != "COMPRAR_AGORA":
             continue
         m = meta.get(g["game_id"], {})
         rows.append({"game_id": g["game_id"], "slug": g["slug"], "title": g["title"], "thumb": m.get("background_image"),
