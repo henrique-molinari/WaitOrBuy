@@ -12,7 +12,7 @@ export default function Busca({ q }: { q: string }) {
   const go = (t: string) => { location.hash = `#/busca?q=${encodeURIComponent(t)}`; };
   const ids = (data?.results ?? []).map((r) => r.game_id);
   return (
-    <div className="stack">
+    <div className="stack page-busca">
       <section className="tight">
         <a className="plain" href="#/">← Início</a>
         <SearchBar initial={q} onSubmit={go} />

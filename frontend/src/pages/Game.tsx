@@ -5,6 +5,7 @@ import { PushPrompt } from "../push";
 import { pushRecent } from "../recent";
 import { Cap, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../components";
 
+const WISH_OK = "Adicionado à wishlist.";
 export default function Game({ id, user }: { id: number; user: User | null }) {
   const [g, setG] = useState<any>(null); const [h, setH] = useState<any>(null); const [days, setDays] = useState(90);
   const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState(""); const [made, setMade] = useState<number | null>(null);
@@ -40,6 +41,10 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
         <p className="t-body-lg reason rise" style={{ animationDelay: "450ms" }}>{v.reasons[0]}</p>
         {v.reasons.slice(1).map((r: string, i: number) => <p key={i} className="wob-hint">{r}</p>)}
         <Cap>CONFIANÇA {String(v.confidence).toUpperCase()}{g.next_sale ? ` · ${g.next_sale.name.toUpperCase()} EM ${g.next_sale.days} DIAS` : ""}</Cap>
+        {user
+          ? <button className="wob-btn wob-btn--secondary" onClick={() => act(() => api("/api/me/wishlist", { method: "POST", body: { game_id: id }, authed: true }), WISH_OK)}>Adicionar à wishlist</button>
+          : <a className="wob-btn wob-btn--secondary" href="#/entrar">Entre para adicionar à wishlist</a>}
+        {msg === WISH_OK && <p role="status" className="notice notice--buy">{msg}</p>}
       </section>
 
       <section className="tight">
@@ -68,11 +73,10 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
           {hint && <p className="wob-hint">{hint}</p>}
           <div className="line">
             <button className="wob-btn wob-btn--primary" disabled={!(tnum > 0)} onClick={() => act(() => api("/api/me/alerts", { method: "POST", body: { game_id: id, target_price_brl: tnum }, authed: true }), `Alerta criado: avisamos quando chegar a ${brl(tnum)}.`).then((done) => done && setMade(tnum))}>Criar alerta</button>
-            <button className="wob-btn wob-btn--secondary" onClick={() => act(() => api("/api/me/wishlist", { method: "POST", body: { game_id: id }, authed: true }), "Adicionado à wishlist.")}>Adicionar à wishlist</button>
           </div>
         </>}
         {user && made !== null && <PushPrompt uid={user.uid} title="Avisar também neste dispositivo?" body={`Ative as notificações para saber na hora quando ${g.title} chegar a ${brl(made)}.`} />}
-        <Err e={err} />{msg && <p role="status" className="notice notice--buy">{msg}</p>}
+        <Err e={err} />{msg && msg !== WISH_OK && <p role="status" className="notice notice--buy">{msg}</p>}
       </section>
     </div>
   );
