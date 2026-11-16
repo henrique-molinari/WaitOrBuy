@@ -8,6 +8,8 @@ TZ = ZoneInfo("America/Sao_Paulo")
 
 @dataclass(frozen=True)
 class VerdictConfig:
+    great_discount_pct: float = 70.0     # A0: desconto ≥ 70% → COMPRAR_AGORA, mesmo sem histórico e com liquidação à vista
+    no_wait_discount_pct: float = 50.0   # com desconto ≥ 50% nunca diz ESPERAR (regras B e C só valem abaixo disso)
     near_min_factor: float = 1.05        # A: preço ≤ 1,05 × mínimo histórico → COMPRAR_AGORA
     wait_sale_min_factor: float = 1.15   # B: preço > 1,15 × mínimo com liquidação próxima → ESPERAR
     sale_window_days: int = 30           # "liquidação próxima" = em até 30 dias

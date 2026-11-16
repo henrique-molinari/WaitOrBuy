@@ -66,9 +66,10 @@ function analyze(g: ReturnType<typeof build>) {
   const min = Math.min(...v), avg = v.reduce((a, b) => a + b, 0) / N, l90 = v.slice(-90), avg90 = l90.reduce((a, b) => a + b, 0) / l90.length;
   const bf = nextBlackFriday(new Date()), days = Math.ceil((bf.getTime() - Date.now()) / 864e5), disc = Math.round((1 - nowP / g.d.base) * 100);
   let verdict = "NEUTRO", reasons = [`${brl(nowP)} está entre o mínimo (${brl(min)}) e a média (${brl(avg)}); sem sinal claro.`];
-  if (N < 5) { verdict = "INSUFICIENTE"; reasons = [`Só ${N} dias de histórico: ainda é cedo para opinar.`]; }
+  if (disc >= 70) { verdict = "COMPRAR_AGORA"; reasons = [`${brl(nowP)} com ${disc}% de desconto: é um ótimo preço, não há motivo para esperar.`]; }
+  else if (N < 5) { verdict = "INSUFICIENTE"; reasons = [`Só ${N} dias de histórico: ainda é cedo para opinar.`]; }
   else if (nowP <= min * 1.05) { verdict = "COMPRAR_AGORA"; reasons = [`${brl(nowP)} está no menor preço histórico ou muito perto (mínimo ${brl(min)}).`]; }
-  else if (days <= 30 && nowP > min * 1.15) { verdict = "ESPERAR"; reasons = [`A Black Friday começa em ${days} dia(s) e o preço atual (${brl(nowP)}) está ${Math.round((nowP / min - 1) * 100)}% acima do mínimo histórico (${brl(min)}).`]; }
+  else if (days <= 30 && nowP > min * 1.15 && disc < 50) { verdict = "ESPERAR"; reasons = [`A Black Friday começa em ${days} dia(s) e o preço atual (${brl(nowP)}) está ${Math.round((nowP / min - 1) * 100)}% acima do mínimo histórico (${brl(min)}).`]; }
   else if (nowP >= avg90 * 0.95 && disc < 20 && days > 30) { verdict = "ESPERAR"; reasons = [`${brl(nowP)} está perto da média dos últimos 90 dias (${brl(avg90)}) e o desconto é de só ${disc}%.`]; }
   if (N >= 5) reasons.push("O histórico usado inclui dias simulados para demonstração.");
   return {
@@ -119,7 +120,7 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
   let r: RegExpMatchArray | null;
 
   if (p === "/api/search") {
-    const t = (q.get("q") ?? "").trim(), stores = q.getAll("store").map(Number), maxP = Number(q.get("max_price") ?? 0), minD = Number(q.get("min_discount") ?? 0), sort = q.get("sort") ?? "relevance";
+    const t = (q.get("q") ?? "").trim(), stores = q.getAll("store").map(Number), maxP = Number(q.get("max_price") ?? 0), minD = Number(q.get("min_discount") ?? 0), buyNow = q.get("buy_now") === "true", sort = q.get("sort") ?? "relevance";
     const facet = new Map<number, { store_id: number; name: string; count: number }>();
     const exact = DB.filter((g) => norm(g.d.title).includes(norm(t)));
     const fuzzy = !!t && norm(t).replace(/\W/g, "").length >= 3 && exact.length === 0, base = fuzzy ? DB.filter((g) => similar(g.d.title, t)) : exact;
@@ -127,7 +128,7 @@ export async function mockApi(path: string, o: Opts = {}): Promise<any> {
       g.offers.forEach((o) => { const f = facet.get(o.store_id) ?? { store_id: o.store_id, name: o.store_name, count: 0 }; f.count++; facet.set(o.store_id, f); });
       const offers = g.offers.filter((o) => (!stores.length || stores.includes(o.store_id)) && (!maxP || o.price_brl <= maxP) && o.discount_pct >= minD);
       return { ...card(g), best_offer: offers[0] ?? null, offers, is_fixture: true, genres: g.d.genres, discovered: false };
-    }).filter((r) => r.offers.length);
+    }).filter((r) => r.offers.length && (!buyNow || analyze(find(r.game_id)!).verdict.verdict === "COMPRAR_AGORA"));
     if (sort === "price") res.sort((a, b) => a.best_offer!.price_brl - b.best_offer!.price_brl);
     else if (sort === "discount") res.sort((a, b) => Math.max(...b.offers.map((o) => o.discount_pct)) - Math.max(...a.offers.map((o) => o.discount_pct)));
     else if (sort === "title") res.sort((a, b) => a.title.localeCompare(b.title));

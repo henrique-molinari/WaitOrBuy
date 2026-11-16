@@ -200,6 +200,19 @@ def test_search_filters_sort_and_facets(client):
     assert [r["title"] for r in by_title] == ["Celeste", "Hades"]
 
 
+def test_search_buy_now_filter(client, world):
+    """"Compre agora" na busca usa o mesmo veredito da tela do jogo; 90% off é compra, 50% sem histórico não é."""
+    buy = {"q": "", "buy_now": True}
+    assert client.get("/api/search", params=buy).json()["count"] == 0  # 50% off e sem histórico: sem veredito de compra
+    world["conn"].execute("UPDATE price_snapshots SET discount_pct = 90 WHERE game_id = 2")
+    assert [r["title"] for r in client.get("/api/search", params=buy).json()["results"]] == ["Celeste"]
+    assert client.get("/api/search", params={**buy, "max_price": 10}).json()["count"] == 0  # combina com os outros filtros
+    assert client.get("/api/search", params={**buy, "min_discount": 90}).json()["count"] == 1
+    assert client.get("/api/search", params={"q": "", "min_discount": 90}).json()["count"] == 1
+    assert client.get("/api/search", params={"q": "", "max_price": 20}).json()["count"] == 1  # "Até R$ 20": Celeste custa R$ 20,00 (inclusive)
+    assert client.get("/api/search", params={"q": "", "max_price": 10}).json()["count"] == 0
+
+
 def test_suggest_and_platforms(client):
     s = client.get("/api/suggest", params={"q": "ha"}).json()
     assert [x["title"] for x in s["suggestions"]] == ["Hades"]

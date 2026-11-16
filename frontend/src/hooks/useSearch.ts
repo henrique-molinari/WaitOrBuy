@@ -8,6 +8,7 @@ export function searchPath(q: string, f: Filters) {
   const max = Number(f.maxPrice.replace(",", "."));
   if (max > 0) p.set("max_price", String(max));
   if (f.minDiscount) p.set("min_discount", String(f.minDiscount));
+  if (f.buyNow) p.set("buy_now", "true");
   return `/api/search?${p}`;
 }
 

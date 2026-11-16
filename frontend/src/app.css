@@ -170,6 +170,11 @@ form.stack{margin:0 auto}
 .busca{display:grid;grid-template-columns:280px 1fr;gap:var(--space-7,48px);align-items:start}
 .filters{display:flex;flex-direction:column;gap:var(--space-3);position:sticky;top:var(--space-3)}
 .filters .head{display:flex;justify-content:space-between;align-items:center}
+.qchips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.qchip{font:inherit;font-size:14px;line-height:20px;padding:6px 12px;border:1.5px solid var(--border-strong);border-radius:var(--radius-pill);background:transparent;color:inherit;cursor:pointer}
+.qchip:hover{border-color:var(--ink)}
+.qchip[aria-pressed="true"]{background:var(--ink);color:var(--surface-raised);border-color:var(--ink)}
+.qchip:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .filters select{width:100%;background:transparent;border:0;font:inherit;color:inherit;height:100%;outline:0;cursor:pointer}
 .filters select:focus-visible{outline:0}
 .filters .wob-input:has(select:focus-visible){outline:3px solid var(--focus);outline-offset:2px;border-color:var(--ink)}

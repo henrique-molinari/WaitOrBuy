@@ -9,5 +9,5 @@ export type Platform = { store_id: number; name: string; domain: string | null; 
 export type Provider = { name: string; role: string; needs_key: boolean; enabled: boolean };
 export type PlatformsResponse = { count: number; platforms: Platform[]; providers: Provider[]; total_games: number };
 export type SortKey = "relevance" | "price" | "discount" | "title" | "stores";
-export type Filters = { stores: number[]; maxPrice: string; minDiscount: number; sort: SortKey };
-export const NO_FILTERS: Filters = { stores: [], maxPrice: "", minDiscount: 0, sort: "relevance" };
+export type Filters = { stores: number[]; maxPrice: string; minDiscount: number; buyNow: boolean; sort: SortKey };
+export const NO_FILTERS: Filters = { stores: [], maxPrice: "", minDiscount: 0, buyNow: false, sort: "relevance" };
